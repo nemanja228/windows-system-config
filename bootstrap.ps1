@@ -22,7 +22,6 @@
         features  — Hyper-V, WSL, VMP, Sandbox feature enables
         wsl       — WSL update, install, .wslconfig
         restore   — system restore point
-        checklist — generate TODO file on Desktop
 
     Pre-flight checks (admin, build, network, exec policy) have NO tags and
     always run.

@@ -50,8 +50,7 @@ windows-system-config/
 │   ├── 60-apps.ps1                # winget source update + tiered import + post-apps tweaks re-import
 │   ├── 61-app-extras.ps1          # auto-run post-install/<PackageId>.ps1 hooks
 │   ├── 70-features-wsl.ps1        # Windows features + WSL update/install + .wslconfig
-│   ├── 80-profiles.ps1            # Wraps scripts/Install-Profiles.ps1 (-NoInit), deploys profiles/
-│   └── 90-checklist.ps1           # TODO-post-install.txt on Desktop
+│   └── 80-profiles.ps1            # Wraps scripts/Install-Profiles.ps1 (-NoInit), deploys profiles/
 │
 ├── resources/                     # Input data consumed by step scripts
 │   ├── autounattend/              # autounattend.xml template + renderer
@@ -195,7 +194,8 @@ Module helpers used by steps:
 9. **`61-app-extras.ps1`** (`apps, extras`) — scans `post-install/*.ps1`. For each, strips `.ps1` to get the package id, checks `winget list --id <id> --exact`, and if installed, compares SHA-256 of the script content against a sentinel at `%LocalAppData%\win-setup\post-install\<id>.hash`. If hash differs (or sentinel missing) runs the script with `Invoke-Step`; else skips with DEBUG. `-ForceAppExtras` clears sentinels first.
 10. **`70-features-wsl.ps1`** (`features` / `wsl`) — Hyper-V, VMP, WSL, Sandbox features (`-NoRestart`), `wsl --update`, install Ubuntu if absent, write `~/.wslconfig` (16GB / 8 procs / sparseVhd / autoMemoryReclaim=gradual). Preserves existing `.wslconfig` unless `-ForceWslConfig`.
 11. **`80-profiles.ps1`** (`profiles` + per-category sub-tags: `git`, `pwsh`, `omp`, `wt`, `fonts`, `ahk`) — thin wrapper that invokes `scripts/Install-Profiles.ps1 -NoInit`. The inner script's six category-specific Invoke-Step calls land in the bootstrap summary because the module's `$script:Summary` is shared. `Install-Profiles.ps1` is also runnable standalone for ad-hoc redeployment after editing a `profiles/*` file.
-12. **`90-checklist.ps1`** (`checklist`) — generates `TODO-post-install.txt` on Desktop with the manual steps (reboot, BIOS, MyASUS, Audient driver, OLED preservation, Office, eUprava, Guitar Pro 7.5, Native Instruments, etc.).
+
+The manual-step "what to do after bootstrap finishes" list lives in [`docs/install-checklist.md`](docs/install-checklist.md) § 15 — that's the source of truth for all manual installs (Office, eUprava, vendor apps, Native Instruments, etc.). Earlier versions of the repo generated `TODO-post-install.txt` on the Desktop from a bootstrap step; that step was removed because keeping the manual-step content in two places (Desktop file + docs) drifted, and the doc wins as the canonical home.
 
 ### Presets
 
@@ -287,4 +287,4 @@ There's an explicit "do not remove" list in `docs/debloat.md` (e.g. `Microsoft.N
 - Office activation (sign in via Word > Account; install via Office Deployment Tool — see `docs/install-checklist.md` § 15)
 - Anything in the manual-install bucket: CoolerMaster MasterPlus+, Guitar Pro 7.5 (winget only has v8), Native Instruments Guitar Rig (via Native Access), Arturia keyboard software, Serbian eUprava tools (Čelik / TrustEdgeID / ePorezi)
 
-All surfaced in the auto-generated `TODO-post-install.txt` on the Desktop after `bootstrap.ps1` and documented in detail in `docs/install-checklist.md`.
+All documented in detail in `docs/install-checklist.md` § 15.

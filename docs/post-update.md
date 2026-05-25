@@ -39,7 +39,7 @@ cd $env:USERPROFILE\code\windows-system-config   # or wherever you cloned
 - Power plan + USB suspend + LSPM + timeouts
 - Defender exclusions
 
-Skipped: restore point, apps (no need to reinstall), checklist, WSL config (probably untouched by the update).
+Skipped: restore point, apps (no need to reinstall), WSL config (probably untouched by the update), profile deployment (your local edits to the deployed files survive — re-run `.\scripts\Install-Profiles.ps1` only if you've updated something in `profiles/` in the repo).
 
 Takes about 60 seconds on a quiet machine. **Idempotent** — every step checks current state before changing anything.
 

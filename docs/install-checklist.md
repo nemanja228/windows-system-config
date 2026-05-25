@@ -145,7 +145,7 @@ What it covers (each step idempotent, tag-filtered, logged):
 - Post-install hooks for each installed app (e.g. Notepad++ plugins, VS Code extensions)
 - Windows Search service disabled (Everything covers file-name search; Outlook content search disabled — see [`debloat.md`](debloat.md))
 - Profile deployment: PS profile / Windows Terminal settings / OMP theme / Caskaydia Cove fonts / AHK startup shortcut / `.gitconfig`
-- A `TODO-post-install.txt` file on Desktop with anything that has to be done manually
+- Anything still requiring manual attention lives in § 15 of this doc
 
 **App tiers** — `bootstrap.ps1 -Tiers common,professional,personal` (default: all three). See [`../resources/winget/`](../resources/winget/) for the tier-file contents:
 
@@ -196,7 +196,7 @@ If you skip the apps step initially and want to re-run just the post-install hoo
 
 ## 15. Manual app installs / configuration
 
-Some apps either aren't on winget, are version-pinned to a release winget doesn't carry, or need vendor-specific account setup that scripts can't automate. See also `TODO-post-install.txt` on the Desktop after `bootstrap.ps1`.
+Some apps either aren't on winget, are version-pinned to a release winget doesn't carry, or need vendor-specific account setup that scripts can't automate. This section is the canonical list.
 
 ### Apps not on winget (or version-pinned)
 

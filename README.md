@@ -38,7 +38,7 @@ For the why behind each piece, see **[`docs/setup-guide.md`](docs/setup-guide.md
 windows-system-config/
 ├── bootstrap.ps1                  # Thin orchestrator: imports module, dot-sources steps/
 ├── lib/WinSetup/                  # Logging + helpers (Get-ResourcePath, Import-RegFilePerValue)
-├── steps/                         # 00-preflight ... 90-checklist, runnable standalone
+├── steps/                         # 00-preflight ... 80-profiles, runnable standalone
 ├── resources/                     # Input data consumed by steps
 │   ├── autounattend/              #   - autounattend.xml template + renderer
 │   ├── debloat/                   #   - Win11Debloat CustomAppsList.txt
@@ -75,7 +75,6 @@ Pre-flight (admin, network, OS build, exec policy) has no tags and **always runs
 | `features` | Hyper-V / WSL / VMP / Sandbox |
 | `wsl` | WSL kernel + Ubuntu + `.wslconfig` |
 | `profiles` | Deploy `profiles/` files (PS profile, WT, OMP, fonts, AHK, `.gitconfig`) via `Install-Profiles.ps1` |
-| `checklist` | `TODO-post-install.txt` on Desktop |
 
 Step runs if **any** of its tags is in your `-Steps` list.
 

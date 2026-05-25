@@ -9,7 +9,7 @@ This page is the overview. Each topic has its own doc; follow the links.
 ## What this repo gets you
 
 - A rendered `autounattend.xml` that handles Windows Setup unattended: skips OOBE, creates a local account, denies telemetry, removes Appx packages before first boot.
-- A `bootstrap.ps1` orchestrator: applies registry tweaks, OOSU10 privacy config, debloat, power plan, Defender exclusions, Hyper-V/WSL/Sandbox features, WSL Ubuntu install, and a TODO checklist on the Desktop.
+- A `bootstrap.ps1` orchestrator: applies registry tweaks, OOSU10 privacy config, debloat, power plan, Defender exclusions, Hyper-V/WSL/Sandbox features, WSL Ubuntu install, and deploys your profile files (terminal, PS, OMP, fonts, AHK, .gitconfig).
 - A tiered apps list (`apps.common.json` + `apps.professional.json` + `apps.personal.json`) imported via winget.
 - Per-app post-install hooks (`post-install/<package-id>.ps1`) — install extensions, sideload plugins, etc.
 - A homed `.gitconfig`, SSH multi-account setup helper, Windows Terminal / PowerShell `$PROFILE` / Oh-My-Posh placeholders.
@@ -74,7 +74,7 @@ This page is the overview. Each topic has its own doc; follow the links.
 │     - Post-install/<package-id>.ps1 hooks for installed apps      │
 │     - tweaks.reg re-import (cleans up installer-created junk)     │
 │     - Windows features + WSL Ubuntu + .wslconfig                  │
-│     - TODO-post-install.txt on Desktop                            │
+│     - profiles/ deployed via 80-profiles → Install-Profiles.ps1   │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -90,7 +90,7 @@ Once everything is set up, a fresh install is **plug in USB → wait → log in 
 - **Office activation** — sign in via Word > Account.
 - **Audio interface driver install** (Audient EVO 4 etc.) — manual download from the vendor.
 
-All listed in the auto-generated `TODO-post-install.txt` on the Desktop after `bootstrap.ps1` runs.
+Full list in [`install-checklist.md`](install-checklist.md) § 15 ("Manual app installs / configuration").
 
 ---
 
