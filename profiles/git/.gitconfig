@@ -1,22 +1,127 @@
-# Global git config — applied to $HOME/.gitconfig by:
-#   scripts/Setup-Git-GitHub.ps1  (with user.name/user.email set live via `git config --global`)
-#   scripts/Install-Profiles.ps1
-#
-# This file is intentionally identity-free. Setup-Git-GitHub.ps1 writes user.name
-# and user.email into the file after it lands, so the repo copy stays shareable.
-#
-# PLACEHOLDER — fill in with your actual preferences. Until then this is a
-# minimal sane default that won't blow up `git config --global` calls.
+# ============================================================
+# CORE
+# ============================================================
 
 [init]
-	defaultBranch = main
+    # New repos start with "main" instead of "master"
+    defaultBranch = main
 
-[pull]
-	rebase = false
-
-[core]
-	autocrlf = input
-	editor = code --wait
 
 [color]
-	ui = auto
+    # Colorize all git output that supports it
+    ui = auto
+
+
+[column]
+    # Display branch lists, tag lists, etc. in columns when terminal is wide enough
+    ui = auto
+
+
+[help]
+    # Auto-correct mistyped commands and run them immediately
+    # e.g. "git stauts" runs "git status" without delay
+    autocorrect = immediate
+
+
+[credential]
+    # Use OS-native credential storage
+    # Windows: manager | macOS: osxkeychain
+    helper = manager
+
+
+# ============================================================
+# BRANCHING & MERGING
+# ============================================================
+
+[push]
+    # Automatically set upstream tracking on first push
+    # No more: --set-upstream origin branch-name
+    autoSetupRemote = true
+
+    # Push annotated tags alongside commits that reference them
+    followTags = true
+
+
+[pull]
+    # Rebase local commits on top of upstream changes instead of creating merge commits
+    # Keeps history linear and readable
+    rebase = true
+
+
+[rebase]
+    # Stash uncommitted changes before rebase, re-apply after
+    # No more: "cannot rebase with dirty tree"
+    autoStash = true
+
+    # When rebasing a chain of branches, update the dependent branch refs too
+    updateRefs = true
+
+
+[merge]
+    # Show the original (ancestor) text in conflict markers alongside ours/theirs
+    # Makes conflicts dramatically easier to understand and resolve
+    conflictstyle = zdiff3
+
+
+[rerere]
+    # "Reuse Recorded Resolution"
+    # Remember how you resolved a conflict and auto-apply the same fix if it occurs again
+    enabled = true
+
+
+[branch]
+    # Sort branch list by most recently committed, not alphabetically
+    sort = -committerdate
+
+
+[tag]
+    # Sort tags by semantic version (newest first) instead of alphabetically
+    sort = -version:refname
+
+
+# ============================================================
+# DIFF
+# ============================================================
+
+[diff]
+    # Histogram produces better diffs than the default Myers algorithm
+    # Especially around moved or refactored code blocks
+    algorithm = histogram
+
+    # Highlight lines that were moved (not added/removed) in a different color
+    # Makes refactoring diffs much easier to review
+    colorMoved = plain
+
+    # Don't let re-indentation break moved-line detection
+    colorMovedWS = allow-indentation-change
+
+
+# ============================================================
+# FETCH & TRANSFER INTEGRITY
+# ============================================================
+
+[fetch]
+    # Automatically delete remote-tracking branches that no longer exist on the remote
+    prune = true
+
+    # Validate object integrity when fetching
+    fsckobjects = true
+
+
+[transfer]
+    # Validate object integrity on all transfers
+    fsckobjects = true
+
+
+[receive]
+    # Validate object integrity when receiving pushes
+    fsckobjects = true
+
+
+# ============================================================
+# ALIASES (optional, personal preference)
+# ============================================================
+
+[alias]
+    # Compact, colorized, graph log
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
