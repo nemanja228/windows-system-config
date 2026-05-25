@@ -15,6 +15,7 @@
         'Write-Log',
         'Invoke-Step',
         'Show-Summary',
+        'Get-StepSummary',
         'Get-ResourcePath',
         'Import-RegFilePerValue'
     )
