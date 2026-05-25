@@ -2,8 +2,14 @@ Windows Registry Editor Version 5.00
 
 ; ============================================================================
 ; win-setup / tweaks.reg
-; UI, privacy, and behaviour tweaks not covered by Win11Debloat or O&O ShutUp10++.
-; Applied by bootstrap.ps1 via:  reg import tweaks.reg
+; UI, privacy, regional, and behaviour tweaks not covered by Win11Debloat or
+; O&O ShutUp10++. Applied by bootstrap.ps1 via:  reg import tweaks.reg
+;
+; This file is the source of truth for the keys it lists. autounattend's
+; first-logon scripts (DefaultUser.ps1 / UserOnce.ps1) set some of these on
+; the default user profile at install time; where values differ (e.g.
+; ShowSuperHidden, SearchboxTaskbarMode), tweaks.reg wins because bootstrap
+; re-runs reg import after install and after every feature update.
 ; ============================================================================
 
 ; ----- File Explorer ---------------------------------------------------------
@@ -16,13 +22,17 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "Hidden"=dword:00000001
 
-; Show protected operating system files (set to 0 if you find this too noisy)
+; Don't show protected operating system files (flip to 1 if you want them visible)
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "ShowSuperHidden"=dword:00000000
 
 ; Open File Explorer to "This PC" instead of Home
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
 "LaunchTo"=dword:00000001
+
+; Show all folders (Desktop, Recycle Bin, User profile) in the navigation pane
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+"NavPaneShowAllFolders"=dword:00000001
 
 ; Disable recent files in Quick Access
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer]
@@ -41,13 +51,9 @@ Windows Registry Editor Version 5.00
 
 ; Hide search box on taskbar (0 = hidden, 1 = icon, 2 = box, 3 = icon+label)
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search]
-"SearchboxTaskbarMode"=dword:00000001
+"SearchboxTaskbarMode"=dword:00000000
 
 ; ----- Taskbar ---------------------------------------------------------------
-
-; Hide Widgets button
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
-"TaskbarDa"=dword:00000000
 
 ; Hide Task View button
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
@@ -115,6 +121,7 @@ Windows Registry Editor Version 5.00
 "PreInstalledAppsEnabled"=dword:00000000
 "PreInstalledAppsEverEnabled"=dword:00000000
 "SubscribedContentEnabled"=dword:00000000
+"SoftLandingEnabled"=dword:00000000
 
 ; Disable lock screen tips / spotlight overlay
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager]
@@ -126,9 +133,9 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\UserProfileEngagement]
 "ScoobeSystemSettingEnabled"=dword:00000000
 
-; Disable Settings home page suggestions ("recommended actions")
-[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
-"NavPaneShowAllFolders"=dword:00000001
+; Disable Settings home page suggestions / online tips
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
+"AllowOnlineTips"=dword:00000000
 
 ; ----- Storage Sense ---------------------------------------------------------
 
@@ -163,3 +170,160 @@ Windows Registry Editor Version 5.00
 ; "MouseSpeed"="0"
 ; "MouseThreshold1"="0"
 ; "MouseThreshold2"="0"
+
+; ----- Regional: locale, formats, geo, keyboard ------------------------------
+; en-US UI/numbers + European dd.MM.yyyy date + 24-hour clock + Serbia (271/RS).
+; Time zone is set via tzutil in bootstrap.ps1 (binary struct in HKLM is painful in .reg).
+[HKEY_CURRENT_USER\Control Panel\International]
+"Locale"="00000409"
+"LocaleName"="en-US"
+"sShortDate"="dd.MM.yyyy"
+"sLongDate"="dddd, d MMMM yyyy"
+"sShortTime"="HH:mm"
+"sTimeFormat"="HH:mm:ss"
+"iTime"="1"
+"iTLZero"="1"
+"iDate"="1"
+"iFirstDayOfWeek"="0"
+"sDecimal"="."
+"sThousand"=","
+"sList"=","
+"sMonDecimalSep"="."
+"sMonThousandSep"=","
+"sCurrency"="$"
+"iCurrDigits"="2"
+"iCurrency"="0"
+"iNegCurr"="0"
+"iMeasure"="0"
+
+[HKEY_CURRENT_USER\Control Panel\International\Geo]
+"Name"="RS"
+"Nation"="271"
+
+; Keyboard layouts: 1 = en-US (default), 2 = Serbian Latin (Alt+Shift to swap)
+[HKEY_CURRENT_USER\Keyboard Layout\Preload]
+"1"="00000409"
+"2"="0000081a"
+
+; ----- Consumer features policy (blocks silent Store app installs, suggestions)
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent]
+"DisableWindowsConsumerFeatures"=dword:00000001
+"DisableCloudOptimizedContent"=dword:00000001
+"DisableConsumerAccountStateContent"=dword:00000001
+
+; ----- Cortana service-level kill (Appx already removed; this kills hooks too)
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Search]
+"AllowCortana"=dword:00000000
+
+; ----- Disable Windows Feedback prompts --------------------------------------
+[HKEY_CURRENT_USER\Software\Microsoft\Siuf\Rules]
+"NumberOfSIUFInPeriod"=dword:00000000
+"PeriodInNanoSeconds"=dword:00000000
+
+; ----- Dark mode (system + apps) — see setup-guide §7 OLED preservation ------
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
+"AppsUseLightTheme"=dword:00000000
+"SystemUsesLightTheme"=dword:00000000
+
+; ----- Taskbar: left alignment, seconds in clock -----------------------------
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+"TaskbarAl"=dword:00000000
+"ShowSecondsInSystemClock"=dword:00000001
+
+; ----- Kill the 10-second startup app delay ----------------------------------
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize]
+"StartupDelayInMSec"=dword:00000000
+
+; ----- Faster menus + kill hung apps cleanly on shutdown ---------------------
+[HKEY_CURRENT_USER\Control Panel\Desktop]
+"MenuShowDelay"="200"
+"AutoEndTasks"="1"
+"HungAppTimeout"="1000"
+; Fill (10): crops image to cover full panel — no bars. Fit (6) would give true-black
+; letterbox bars on OLED (pixel off = less aging) but Fill is better for mixed slideshows.
+"WallpaperStyle"="10"
+"TileWallpaper"="0"
+
+; ----- Background + lock screen slideshow (OLED-safe) ------------------------
+; 30-min shuffle slideshow on both desktop and lock screen. SlideshowAutoLock=0
+; means the lock screen slideshow does NOT prevent the normal display-off timeout
+; (respects powercfg display timeout — does not hold a wake lock).
+[HKEY_CURRENT_USER\Control Panel\Personalization\Desktop Slideshow]
+"Interval"=dword:001b7740
+"Shuffle"=dword:00000001
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers]
+"BackgroundType"=dword:00000002
+"SlideshowSourceDirectoriesSet"=dword:00000001
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Lock Screen]
+"SlideshowEnabled"=dword:00000001
+"SlideshowDuration"=dword:001b7740
+"SlideshowAutoLock"=dword:00000000
+"SlideshowSourceDirectoriesSet"=dword:00000001
+
+; ----- Stop NCSI active connectivity probes ----------------------------------
+; (Optional aggressive — can break captive portal detection in hotels/airports)
+; [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NlaSvc\Parameters\Internet]
+; "EnableActiveProbing"=dword:00000000
+
+; ----- Clipboard history (Win+V) ---------------------------------------------
+[HKEY_CURRENT_USER\Software\Microsoft\Clipboard]
+"EnableClipboardHistory"=dword:00000001
+
+; ----- Hardware Accelerated GPU Scheduling (HAGS) ----------------------------
+; 2=enabled, 1=disabled. Reduces CPU→GPU latency; benefits the Radeon 890M.
+; Requires a reboot to take effect. Driver must support it (WDDM 2.7+).
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\GraphicsDrivers]
+"HwSchMode"=dword:00000002
+
+; ----- Developer settings ----------------------------------------------------
+; Developer mode (sideloading, device portal, etc.)
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock]
+"AllowDevelopmentWithoutDevLicense"=dword:00000001
+"AllowAllTrustedApps"=dword:00000001
+
+; Sudo — inline mode (3): runs in the same terminal window, most Unix-like.
+; 0=off, 1=new window, 2=disable input, 3=inline
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo]
+"Enabled"=dword:00000003
+
+; Long file paths (removes the 260-char MAX_PATH limit for Win32 apps)
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem]
+"LongPathsEnabled"=dword:00000001
+
+; Default terminal host — Windows Terminal (GUIDs confirmed from this machine's
+; Microsoft.WindowsTerminal_1.24.11321.0_x64__8wekyb3d8bbwe PackagedCom entry)
+[HKEY_CURRENT_USER\Console\%Startup]
+"DelegationConsole"="{2EACA947-7F5F-4CFA-BA87-8F7FBEEFBE69}"
+"DelegationTerminal"="{E12CFF52-A866-4C77-9A90-F570A7AA2C6B}"
+
+; ----- Precision Touchpad ----------------------------------------------------
+; Physical clicks only (bottom-left = left, bottom-right = right).
+; Two-finger scroll + pinch zoom on. All taps, tap-drag, and 3/4-finger
+; gestures off.
+; ThreeFingerSlideEnabled/FourFingerSlideEnabled = 0xffff means "custom
+; per-direction mode" — Windows writes this value (not 0) when you set all
+; directions to Nothing in Settings. All direction keys = 0 = Nothing.
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\PrecisionTouchPad]
+"TapsEnabled"=dword:00000000
+"TwoFingerTapEnabled"=dword:00000000
+"TapAndDrag"=dword:00000000
+"RightClickZoneEnabled"=dword:00000001
+"PanEnabled"=dword:00000001
+"ScrollDirection"=dword:00000000
+"ZoomEnabled"=dword:00000001
+"ThreeFingerTapEnabled"=dword:00000000
+"CustomThreeFingerTap"=dword:00000000
+"ThreeFingerSlideEnabled"=dword:0000ffff
+"ThreeFingerUp"=dword:00000000
+"ThreeFingerDown"=dword:00000000
+"ThreeFingerLeft"=dword:00000000
+"ThreeFingerRight"=dword:00000000
+"FourFingerTapEnabled"=dword:00000000
+"CustomFourFingerTap"=dword:00000000
+"FourFingerSlideEnabled"=dword:0000ffff
+"FourFingerUp"=dword:00000000
+"FourFingerDown"=dword:00000000
+"FourFingerLeft"=dword:00000000
+"FourFingerRight"=dword:00000000

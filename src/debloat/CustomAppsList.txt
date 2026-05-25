@@ -83,4 +83,4 @@ DolbyLaboratories.DolbyAccess
 Microsoft.Windows.SecureAssessmentBrowser
 
 ; ===== McAfee / OEM AV trial — only if your OEM image ships it =====
-; 5A894077.McAfeeSecurity
+5A894077.McAfeeSecurity

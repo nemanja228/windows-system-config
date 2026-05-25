@@ -255,13 +255,122 @@ Invoke-Step -Name "Apply registry tweaks (tweaks.reg)" -Tags @('core','debloat',
         Write-Log -Level WARN -Message "  tweaks.reg not found in $ScriptDir — skipping."
         return
     }
+
+    # Per-value import. `reg import` of the whole file only emits a generic
+    # "Not all data was successfully written" on partial failure — useless for
+    # triage. Splitting into one-value temp .reg files surfaces the exact
+    # key+value that fails in both the bootstrap log and reg-import-<stamp>.log.
+
     $regLog = Join-Path $init.LogDir "reg-import-$($init.Stamp).log"
-    $p = Start-Process -FilePath reg.exe -ArgumentList @('import', "`"$reg`"") -Wait -PassThru `
-            -NoNewWindow -RedirectStandardOutput $regLog -RedirectStandardError "$regLog.err"
-    if ($p.ExitCode -ne 0) {
-        throw "reg import exited with code $($p.ExitCode). See $regLog"
+    Set-Content -Path $regLog -Encoding UTF8 -Value @"
+Per-value reg import for $reg
+Start: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+
+"@
+
+    $content  = Get-Content -Path $reg -Raw
+    $splitIdx = $content.IndexOf("`n[")
+    if ($splitIdx -lt 0) {
+        throw "No [HKEY_*] sections found in $reg"
     }
-    Write-Log -Level DEBUG -Message "  reg import OK ($reg)"
+    $header = $content.Substring(0, $splitIdx + 1).TrimEnd()
+    $rest   = $content.Substring($splitIdx + 1)
+    $blocks = $rest -split '(?m)(?=^\[)'
+
+    $okCount = 0
+    $failed  = New-Object System.Collections.Generic.List[pscustomobject]
+
+    foreach ($block in $blocks) {
+        if ([string]::IsNullOrWhiteSpace($block)) { continue }
+        # Join backslash-continuation lines so multi-line binary values stay intact
+        $joined = $block -replace '\\\s*\r?\n\s*', ''
+        $lines  = $joined -split "`r?`n"
+        $keyHeader = $lines[0].Trim()
+        if (-not $keyHeader.StartsWith('[')) { continue }
+
+        foreach ($line in $lines[1..($lines.Length - 1)]) {
+            $t = $line.Trim()
+            if ([string]::IsNullOrWhiteSpace($t)) { continue }
+            if ($t.StartsWith(';'))                 { continue }
+            if ($t -notmatch '^("[^"]*"|@)\s*=')    { continue }
+
+            $regBody = "$header`r`n`r`n$keyHeader`r`n$t`r`n"
+            $tmp = Join-Path $env:TEMP ("regprobe-{0}.reg" -f [guid]::NewGuid())
+            Set-Content -LiteralPath $tmp -Value $regBody -Encoding ASCII
+            $out  = & reg.exe import $tmp 2>&1
+            $code = $LASTEXITCODE
+            Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+
+            $valueName = if ($t.StartsWith('@')) { '(Default)' } else { ($t -split '=', 2)[0].Trim('"') }
+            $keyPath   = $keyHeader.Trim('[', ']')
+
+            if ($code -eq 0) {
+                $okCount++
+                Add-Content -Path $regLog -Encoding UTF8 -Value ("[OK  ] {0}\{1}" -f $keyPath, $valueName)
+            } else {
+                $failed.Add([pscustomobject]@{
+                    Key      = $keyPath
+                    Value    = $valueName
+                    Line     = $t
+                    ExitCode = $code
+                    Output   = ($out -join ' | ')
+                })
+                Add-Content -Path $regLog -Encoding UTF8 -Value ("[FAIL] {0}\{1}" -f $keyPath, $valueName)
+                Add-Content -Path $regLog -Encoding UTF8 -Value ("       line: $t")
+                Add-Content -Path $regLog -Encoding UTF8 -Value ("       exit: $code")
+                Add-Content -Path $regLog -Encoding UTF8 -Value ("       out : $($out -join ' | ')")
+            }
+        }
+    }
+
+    Add-Content -Path $regLog -Encoding UTF8 -Value ("`r`nSummary: {0} OK, {1} FAILED" -f $okCount, $failed.Count)
+
+    if ($failed.Count -gt 0) {
+        Write-Log -Level WARN -Message "  $($failed.Count) of $($okCount + $failed.Count) registry values failed to import:"
+        foreach ($f in $failed) {
+            Write-Log -Level WARN -Message ("    ! {0}\{1}  (exit {2}): {3}" -f $f.Key, $f.Value, $f.ExitCode, $f.Output)
+        }
+        Write-Log -Level WARN -Message "  Detailed log: $regLog"
+        if ($okCount -eq 0) {
+            throw "All $($failed.Count) registry values failed to import. See $regLog"
+        }
+    } else {
+        Write-Log -Level DEBUG -Message "  All $okCount values imported OK"
+    }
+}
+
+# =============================================================================
+# Time zone (matches Serbia/CET region set in autounattend; reinforce each run)
+# =============================================================================
+
+Invoke-Step -Name "Set time zone to Central Europe Standard Time" -Tags @('core','config') -ContinueOnError -SkipOnDryRun -Action {
+    $current = (Get-TimeZone).Id
+    if ($current -eq 'Central Europe Standard Time') {
+        Write-Log -Level DEBUG -Message "  Time zone already correct: $current"
+        return
+    }
+    Set-TimeZone -Id 'Central Europe Standard Time'
+    Write-Log -Level DEBUG -Message "  Time zone: $current -> Central Europe Standard Time"
+}
+
+# =============================================================================
+# Taskbar auto-hide
+# =============================================================================
+# StuckRects3\Settings is REG_BINARY — can't be partially written via .reg
+# without clobbering position/size bytes. Flip only bit 0 of byte 8:
+#   0x02 = visible, 0x03 = auto-hidden.
+
+Invoke-Step -Name "Taskbar: enable auto-hide" -Tags @('core','config') -ContinueOnError -SkipOnDryRun -Action {
+    $path = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StuckRects3'
+    $settings = (Get-ItemProperty -Path $path).Settings
+    if (($settings[8] -band 0x01) -eq 0x01) {
+        Write-Log -Level DEBUG -Message "  Taskbar auto-hide already enabled"
+        return
+    }
+    $settings[8] = $settings[8] -bor 0x01
+    Set-ItemProperty -Path $path -Name Settings -Value $settings
+    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+    Write-Log -Level DEBUG -Message "  Taskbar auto-hide enabled; Explorer restarted"
 }
 
 # =============================================================================
@@ -302,6 +411,28 @@ Invoke-Step -Name "Power: disable USB selective suspend (AC+DC)" -Tags @('core',
     powercfg /setdcvalueindex SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
     powercfg /setactive SCHEME_CURRENT
     Write-Log -Level DEBUG -Message "  USB selective suspend disabled on active plan"
+}
+
+Invoke-Step -Name "Power: disable Link State Power Management on AC" -Tags @('core','power') -ContinueOnError -SkipOnDryRun -Action {
+    powercfg /setacvalueindex SCHEME_CURRENT 501a4d13-42af-4429-9fd1-a8218c268e20 ee12f906-d277-404b-b6da-e5fa1a576df5 0
+    powercfg /setactive SCHEME_CURRENT
+    Write-Log -Level DEBUG -Message "  LSPM AC = Off on active plan"
+}
+
+Invoke-Step -Name "Power: display timeout, sleep, lid, hibernate" -Tags @('core','power') -ContinueOnError -SkipOnDryRun -Action {
+    # Display off: 10 min AC, 3 min DC
+    powercfg /setacvalueindex SCHEME_CURRENT SUB_VIDEO VIDEOIDLE 600
+    powercfg /setdcvalueindex SCHEME_CURRENT SUB_VIDEO VIDEOIDLE 180
+    # Sleep: 30 min AC, 15 min DC
+    powercfg /setacvalueindex SCHEME_CURRENT SUB_SLEEP STANDBYIDLE 1800
+    powercfg /setdcvalueindex SCHEME_CURRENT SUB_SLEEP STANDBYIDLE 900
+    # Lid close = sleep on both AC and DC (1=sleep, 2=hibernate, 3=shutdown)
+    powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1
+    powercfg /setdcvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1
+    powercfg /setactive SCHEME_CURRENT
+    # Disable hibernate — removes hiberfil.sys, reclaims RAM-sized disk space
+    powercfg /hibernate off
+    Write-Log -Level DEBUG -Message "  Display/sleep timeouts, lid=sleep, hibernate=off applied"
 }
 
 # =============================================================================
@@ -450,7 +581,7 @@ REBOOT first — Windows features (Hyper-V, WSL, Sandbox) need it.
 [ ] LatencyMon: run 15 min idle, audit any DPC outliers
 [ ] OLED preservation:
        -> Settings > Personalization > Colors = Dark
-       -> Taskbar settings > Automatically hide
+       -> Taskbar auto-hide is set by bootstrap.ps1 automatically
        -> MyASUS > Device settings > enable Pixel Refresh / Pixel Shift
        -> Wallpaper slideshow every 30 min
 
