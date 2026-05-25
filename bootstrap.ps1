@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 #Requires -RunAsAdministrator
 
 <#
@@ -72,6 +72,8 @@
 [CmdletBinding()]
 param(
     [string[]]$Steps,
+    [ValidateSet('common','professional','personal')]
+    [string[]]$Tiers = @('common','professional','personal'),
     [switch]$PostUpdate,
     [switch]$AppsOnly,
     [switch]$Verify,
@@ -91,9 +93,9 @@ if (-not $ScriptDir) { $ScriptDir = Get-Location }
 # Load logging library
 # =============================================================================
 
-$libPath = Join-Path $ScriptDir 'lib\Logging.ps1'
+$libPath = Join-Path $ScriptDir 'Logging.ps1'
 if (-not (Test-Path $libPath)) {
-    Write-Error "Cannot find $libPath. Make sure the 'lib' folder is alongside this script."
+    Write-Error "Cannot find $libPath. Logging.ps1 must sit alongside this script."
     exit 1
 }
 . $libPath
@@ -202,7 +204,7 @@ Invoke-Step -Name "Create system restore point" -Tags @('restore') -ContinueOnEr
 # =============================================================================
 
 Invoke-Step -Name "Win11Debloat (apps + telemetry + UI tweaks)" -Tags @('core','debloat') -ContinueOnError -SkipOnDryRun -Action {
-    $customList = Join-Path $ScriptDir 'CustomAppsList.txt'
+    $customList = Join-Path $ScriptDir 'resources\debloat\CustomAppsList.txt'
     if (Test-Path $customList) {
         Write-Log -Level INFO -Message "  Found custom apps list: $customList"
         $cfgDir = Join-Path $env:TEMP 'Win11Debloat\Config'
@@ -225,7 +227,7 @@ Invoke-Step -Name "Win11Debloat (apps + telemetry + UI tweaks)" -Tags @('core','
 # =============================================================================
 
 Invoke-Step -Name "O&O ShutUp10++ (apply saved privacy config)" -Tags @('core','debloat','privacy') -ContinueOnError -SkipOnDryRun -Action {
-    $cfgPath = Join-Path $ScriptDir 'ooshutup10.cfg'
+    $cfgPath = Join-Path $ScriptDir 'resources\shutup\ooshutup10.cfg'
     if (-not (Test-Path $cfgPath)) {
         Write-Log -Level WARN -Message "  ooshutup10.cfg not found in $ScriptDir — skipping."
         Write-Log -Level WARN -Message "  Generate one: download OOSU10.exe interactively, configure, File > Export."
@@ -250,7 +252,7 @@ Invoke-Step -Name "O&O ShutUp10++ (apply saved privacy config)" -Tags @('core','
 # =============================================================================
 
 Invoke-Step -Name "Apply registry tweaks (tweaks.reg)" -Tags @('core','debloat','privacy','config') -ContinueOnError -SkipOnDryRun -Action {
-    $reg = Join-Path $ScriptDir 'tweaks.reg'
+    $reg = Join-Path $ScriptDir 'resources\registry\tweaks.reg'
     if (-not (Test-Path $reg)) {
         Write-Log -Level WARN -Message "  tweaks.reg not found in $ScriptDir — skipping."
         return
@@ -381,15 +383,20 @@ Invoke-Step -Name "winget: update sources" -Tags @('apps') -ContinueOnError -Ski
     winget source update
 }
 
-Invoke-Step -Name "winget: import apps.json" -Tags @('apps') -ContinueOnError -SkipOnDryRun -Action {
-    $apps = Join-Path $ScriptDir 'apps.json'
-    if (-not (Test-Path $apps)) {
-        throw "apps.json not found in $ScriptDir"
+Invoke-Step -Name "winget: import tiered apps lists" -Tags @('apps') -ContinueOnError -SkipOnDryRun -Action {
+    $wingetDir = Join-Path $ScriptDir 'resources\winget'
+    Write-Log -Level INFO -Message "  Selected tiers: $($Tiers -join ', ')"
+    foreach ($tier in $Tiers) {
+        $apps = Join-Path $wingetDir ("apps.{0}.json" -f $tier)
+        if (-not (Test-Path $apps)) {
+            Write-Log -Level WARN -Message "  $apps not found — skipping tier '$tier'"
+            continue
+        }
+        Write-Log -Level DEBUG -Message "  Importing tier '$tier': $apps  (output -> $Script:WingetLog)"
+        & winget import --import-file $apps `
+            --accept-package-agreements --accept-source-agreements `
+            --ignore-unavailable 2>&1 | Tee-Object -FilePath $Script:WingetLog -Append
     }
-    Write-Log -Level DEBUG -Message "  Importing $apps  (output -> $Script:WingetLog)"
-    & winget import --import-file $apps `
-        --accept-package-agreements --accept-source-agreements `
-        --ignore-unavailable 2>&1 | Tee-Object -FilePath $Script:WingetLog
 }
 
 # =============================================================================

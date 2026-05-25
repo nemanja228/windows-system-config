@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Reusable logging helpers for win-setup-style automation scripts.
 

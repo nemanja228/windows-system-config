@@ -1,4 +1,4 @@
-#Requires -RunAsAdministrator
+﻿#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
     Diagnoses partial-write failures in a .reg file by importing each value individually.
@@ -21,7 +21,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Path = (Join-Path $PSScriptRoot '..\tweaks.reg')
+    [string]$Path = (Join-Path $PSScriptRoot '..\resources\registry\tweaks.reg')
 )
 
 if (-not (Test-Path $Path)) {

@@ -1,6 +1,6 @@
-Write-Host "`n--- Installing Notepad++ ---" -ForegroundColor Cyan
-
-winget install --id Notepad++.Notepad++ -e --accept-source-agreements --accept-package-agreements --silent
+﻿# Post-install hook for Notepad++.Notepad++ — runs after winget installs the app.
+# Sideloads the user's chosen plugin set from the official Notepad++ plugin JSON.
+# Idempotent: each plugin is skipped if already present in the plugins folder.
 
 Write-Host "`n--- Installing Notepad++ Plugins ---" -ForegroundColor Cyan
 

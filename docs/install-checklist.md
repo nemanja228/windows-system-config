@@ -1,0 +1,199 @@
+# Install checklist
+
+End-to-end procedural walkthrough for a fresh Windows 11 install using this repo. Each section is sequential; cross-references to scripts and `bootstrap.ps1` switches are inline.
+
+For the *why* behind each step (debloat philosophy, OLED preservation, BIOS settings, etc.) see [`setup-guide.md`](setup-guide.md) and the topical docs in this folder. Machine-specific quirks live under [`machines/`](machines/).
+
+---
+
+## 1. Pre-install
+
+- [ ] **Update BIOS** to the current version before installing Windows (firmware-validated drivers depend on it). Easiest path: vendor app on the existing OS, or EZ Flash from a FAT32 USB if the vendor has a direct BIOS file.
+- [ ] **Download a current Windows 11 ISO** (24H2 or 25H2) from Microsoft. Don't use Rufus's "tweaked install" mode — it injects its own `autounattend.xml` that would override the one in this repo.
+- [ ] **Render `autounattend.xml`** from this repo's template — see [`../resources/autounattend/`](../resources/autounattend/). Run `render-autounattend.ps1` interactively or with parameters; it prompts for computer name, local username, password, Wi-Fi SSID and password, and install-drive size.
+- [ ] **Put the rendered `autounattend.xml` on the install USB root**, then boot from it.
+
+## 2. Unattended install (handled by `autounattend.xml`)
+
+These choices are encoded in the template; included here so you know what to expect:
+
+- US display language + Serbian Latin secondary keyboard layout
+- Serbian region
+- Install drive ~350 GB (configurable via `-CSizeGB`)
+- Local account, OOBE skipped
+- Telemetry baseline denied
+- (Wi-Fi driver: install separately after first boot if the USB's network stack didn't pick yours up)
+
+## 3. First boot — updates and drivers (manual)
+
+Driver-update order matters: the vendor app pulls a curated driver pack validated against your firmware, while later AMD/Intel direct-from-vendor updates usually supersede pieces of it.
+
+- [ ] **Pause Windows Update** for ~1 week (Settings → Windows Update) so it doesn't fight you while you install drivers.
+- [ ] **Update Microsoft Store** (Store → Library → Get updates).
+- [ ] **Install the vendor app** (e.g. MyASUS) and run its Live Update — pulls the validated driver pack: chipset, audio, fingerprint, FN keys, system control interface.
+- [ ] **Update BIOS** if not done in step 1.
+- [ ] **Update drivers automatically** via the vendor app.
+- [ ] **Update chipset / CPU / GPU** drivers directly from AMD or Intel — these are usually newer than what the vendor ships and include scheduler updates (e.g. Zen 5 hybrid topology).
+- [ ] **Resume Windows Update** and let it patch the rest. Re-run until "no updates available."
+
+See [`drivers.md`](drivers.md) for the rationale and [`machines/`](machines/) for any device-specific notes (vendor app settings, panel quirks, audio interface notes).
+
+## 4. Activate Windows
+
+- [ ] Sign in or paste a product key (Settings → System → Activation).
+
+## 5. Set up drives
+
+After install drive is provisioned, partition the rest of the disk:
+
+- [ ] **Install drive** — already exists from step 2 (~350 GB).
+- [ ] **Dev Drive** — ReFS volume sized for source trees and package caches (e.g. 150 GB). Settings → System → Storage → Disks & volumes → Create Dev Drive. Dev Drive enables ReFS + Performance Mode for Defender.
+- [ ] **Data drive** — remaining space, NTFS. Mount as `D:\` (or whatever letter).
+
+## 6. PowerShell execution policy
+
+The autounattend handles this for fresh installs. If running scripts on an existing install: open an elevated PowerShell and run
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+`bootstrap.ps1` re-applies the process-scope policy on every run regardless.
+
+## 7. Firefox (browser-bootstrap, manual)
+
+Install Firefox first so the rest of the auth steps can be done in your real browser, not Edge.
+
+```powershell
+winget install --id Mozilla.Firefox -e
+```
+
+Then:
+
+- [ ] Set Firefox as default browser (Settings → Apps → Default apps).
+- [ ] Sign into Bitwarden web app with your unlock key.
+- [ ] Sign into Google with key (via Bitwarden autofill).
+- [ ] Sign into Mozilla account → activate sync.
+- [ ] Install Bitwarden extension → sign in with key.
+
+## 8. Insync (Google Drive sync, manual)
+
+- [ ] Install Insync.
+- [ ] Turn off all base-folder syncs (Documents, Desktop, etc.).
+- [ ] Manually set up `_data` folder sync to `D:\data` (or wherever the data drive landed).
+- [ ] Set exclusions so the sync engine doesn't try to fight ephemeral dirs.
+
+## 9. Git and GitHub
+
+Run [`../scripts/Setup-Git-GitHub.ps1`](../scripts/Setup-Git-GitHub.ps1) — interactive, prompts for parameters:
+
+```powershell
+.\scripts\Setup-Git-GitHub.ps1 `
+    -SshEmail 'you@example.com' `
+    -KeyAlias 'id_ed25519_github' `
+    -HostAlias 'github.com' `
+    -GitUserName 'Your Name' `
+    -GitUserEmail 'you@example.com'
+```
+
+What it does:
+
+- Installs Git via winget (or upgrades if already installed)
+- Generates a new ed25519 SSH key and an SSH config entry under the given host alias
+- Copies the public key to your clipboard and opens https://github.com/settings/ssh/new in your browser — paste and save
+- Copies `profiles/git/.gitconfig` from the repo to `$HOME/.gitconfig` (backing up any existing one)
+- Sets `user.name` and `user.email` globally via `git config --global`
+
+If you want to fetch from a remote Gist instead of the repo file (one-off machine, custom config), pass `-GistUrl <url>`.
+
+See [`git-github.md`](git-github.md) for multi-account SSH setup and the in-repo `.gitconfig` rationale.
+
+## 10. Run `bootstrap.ps1` (the workhorse)
+
+Clone or copy this repo somewhere (e.g. `$env:USERPROFILE\code\windows-system-config`). Open an **elevated** PowerShell, `cd` into it, and run:
+
+```powershell
+.\bootstrap.ps1 -Verify     # dry-run first to confirm what'll happen
+.\bootstrap.ps1             # full run
+```
+
+What it covers (each step idempotent, tag-filtered, logged):
+
+- System restore point
+- Win11Debloat (apps + telemetry + UI tweaks)
+- O&O ShutUp10++ with the saved privacy config
+- `tweaks.reg` (per-value import with detailed failure log)
+- Time zone, taskbar autohide
+- winget import (tiered — see below)
+- Power plan + USB selective suspend + LSPM + timeouts
+- Defender exclusions for dev/audio dirs
+- Hyper-V / WSL / VMP / Sandbox features
+- WSL Ubuntu install + `.wslconfig`
+- Post-install hooks for each installed app (e.g. Notepad++ plugins)
+- A `TODO-post-install.txt` file on Desktop with anything that has to be done manually
+
+**App tiers** — `bootstrap.ps1 -Tiers common,professional,personal` (default: all three). See [`../resources/winget/`](../resources/winget/) for the tier-file contents:
+
+| Tier | Examples |
+|---|---|
+| `common` | PowerShell, Terminal, VS Code, Git, gh, OhMyPosh, PowerToys, browsers, 7zip, VLC, Everything, WizTree, UniGetUI |
+| `professional` | VS 2022 Pro, SSMS, .NET SDKs |
+| `personal` | Obsidian, Spotify, REAPER, LatencyMon |
+
+## 11. Windows Terminal, PowerShell, Oh-My-Posh
+
+Real configs live in [`../profiles/`](../profiles/). Install them via:
+
+```powershell
+.\scripts\Install-Profiles.ps1            # copy
+.\scripts\Install-Profiles.ps1 -Symlink   # symlink (requires elevation on Windows)
+.\scripts\Install-Profiles.ps1 -WhatIf    # see what would happen
+```
+
+See [`terminal-profile.md`](terminal-profile.md) for what each file does and where it lands.
+
+## 12. Optionally install VS Code for markdown/script editing
+
+(Already in `apps.common.json`; skip if `bootstrap.ps1` already ran with the `common` tier.)
+
+## 13. Claude Code
+
+```powershell
+.\scripts\Install-ClaudeCode.ps1
+```
+
+Installs via winget and adds the install dir to user PATH.
+
+## 14. Notepad++ + plugins
+
+Notepad++ install isn't in the default tiers — install ad hoc and the post-install hook handles plugins:
+
+```powershell
+winget install --id Notepad++.Notepad++ -e
+.\bootstrap.ps1 -Steps extras
+```
+
+The plugin sideload lives at [`../post-install/Notepad++.Notepad++.ps1`](../post-install/Notepad++.Notepad++.ps1).
+
+## 15. Manual app installs / configuration
+
+Not all apps install cleanly via winget, and some need post-install attention that scripts can't do for you. See `TODO-post-install.txt` on the Desktop after `bootstrap.ps1` for the up-to-date list. Typical residuals:
+
+- Audient EVO 4 driver (manual download from audient.com)
+- MyASUS settings (Battery Care, Fan Mode — UI-only, no API)
+- Office activation (Word → File → Account → sign in)
+- Visual Studio workloads (.NET desktop, ASP.NET, Azure dev)
+- BitLocker (intentionally not automated)
+- BIOS settings double-check (SVM / Secure Boot / fTPM enabled)
+
+## 16. After Windows feature updates
+
+Feature updates (24H2 → 25H2 etc.) silently re-enable telemetry, Copilot, Widgets, web search, lock-screen suggestions, etc. Re-run:
+
+```powershell
+.\bootstrap.ps1 -PostUpdate
+```
+
+Equivalent to `-Steps debloat,privacy,features,power,defender`. Skips the slow apps step. About 60 seconds.
+
+See [`post-update.md`](post-update.md) for which settings drift most often.

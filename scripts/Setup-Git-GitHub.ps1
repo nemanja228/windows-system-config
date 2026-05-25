@@ -1,9 +1,16 @@
-<#
+﻿<#
 .SYNOPSIS
-Automates Git installation, overwrites global configuration via Gist, generates SSH profiles, and sets global identity.
+Automates Git installation, applies global .gitconfig (in-repo by default, optional Gist override), generates SSH profiles, and sets global identity.
+
+.DESCRIPTION
+Default behaviour is to copy the in-repo profiles/git/.gitconfig to $HOME/.gitconfig.
+Pass -GistUrl to fetch from a remote Gist instead (one-off override).
 
 .EXAMPLE
-.\Setup-DevEnvironment.ps1 -SshEmail "me@example.com" -KeyAlias "id_ed25519_personal" -HostAlias "github.com-personal" -GistUrl "https://gist.githubusercontent.com/..." -GitUserName "John Doe" -GitUserEmail "john@example.com"
+.\Setup-Git-GitHub.ps1 -SshEmail "me@example.com" -KeyAlias "id_ed25519_personal" -HostAlias "github.com" -GitUserName "John Doe" -GitUserEmail "john@example.com"
+
+.EXAMPLE
+.\Setup-Git-GitHub.ps1 -SshEmail "me@example.com" -KeyAlias "id_ed25519_personal" -HostAlias "github.com" -GitUserName "John Doe" -GitUserEmail "john@example.com" -GistUrl "https://gist.githubusercontent.com/..."
 #>
 
 [CmdletBinding()]
@@ -17,14 +24,14 @@ param (
     [Parameter(Mandatory=$true, HelpMessage="Host alias for SSH config (e.g., github.com-personal)")]
     [string]$HostAlias,
 
-    [Parameter(Mandatory=$true, HelpMessage="The URL of your public Gist containing the Git config")]
-    [string]$GistUrl,
-
     [Parameter(Mandatory=$true, HelpMessage="Your full name for Git commits")]
     [string]$GitUserName,
 
     [Parameter(Mandatory=$true, HelpMessage="Your primary email for Git commits")]
-    [string]$GitUserEmail
+    [string]$GitUserEmail,
+
+    [Parameter(Mandatory=$false, HelpMessage="Optional: fetch global .gitconfig from a remote Gist URL instead of the in-repo profiles/git/.gitconfig")]
+    [string]$GistUrl
 )
 
 # ==============================================================================
@@ -98,7 +105,8 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 
 if (-not $isAdmin) {
     Write-Host "Script is not running as Administrator. Elevating and passing parameters..." -ForegroundColor Yellow
-    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -SshEmail `"$SshEmail`" -KeyAlias `"$KeyAlias`" -HostAlias `"$HostAlias`" -GistUrl `"$GistUrl`" -GitUserName `"$GitUserName`" -GitUserEmail `"$GitUserEmail`""
+    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -SshEmail `"$SshEmail`" -KeyAlias `"$KeyAlias`" -HostAlias `"$HostAlias`" -GitUserName `"$GitUserName`" -GitUserEmail `"$GitUserEmail`""
+    if ($GistUrl) { $arguments += " -GistUrl `"$GistUrl`"" }
     Start-Process powershell -Verb runAs -ArgumentList $arguments
     exit
 }
@@ -120,33 +128,40 @@ if (-not $gitInstalled) {
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
 # ==============================================================================
-# 4. OVERWRITE GLOBAL GIT CONFIG VIA GIST
+# 4. APPLY GLOBAL .GITCONFIG (in-repo by default, optional Gist override)
 # ==============================================================================
-Write-Host "`n--- Setting up Global Git Config via Gist ---" -ForegroundColor Cyan
-
-if ($GistUrl -match "^https://gist\.github\.com/(.*)$") {
-    if ($GistUrl -notmatch "/raw$") {
-        $GistUrl = "$GistUrl/raw"
-        Write-Host "Auto-corrected Gist URL to raw format." -ForegroundColor Cyan
-    }
-}
-
 $globalGitConfigPath = Join-Path $HOME ".gitconfig"
 
 if (Test-Path $globalGitConfigPath) {
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $timestamp  = Get-Date -Format "yyyyMMdd_HHmmss"
     $backupPath = "$globalGitConfigPath.bak_$timestamp"
     Write-Host "Existing .gitconfig found. Creating backup at: $backupPath" -ForegroundColor Yellow
     Copy-Item -Path $globalGitConfigPath -Destination $backupPath -Force
 }
 
-Write-Host "Downloading Git config from Gist and overwriting local config..."
-try {
-    Invoke-RestMethod -Uri $GistUrl -OutFile $globalGitConfigPath
-    Write-Host "Successfully applied Gist to $globalGitConfigPath" -ForegroundColor Green
-}
-catch {
-    Write-Host "Failed to download Gist. Check the URL and your internet connection." -ForegroundColor Red
+if ($GistUrl) {
+    Write-Host "`n--- Fetching global .gitconfig from Gist ---" -ForegroundColor Cyan
+    if ($GistUrl -match "^https://gist\.github\.com/(.*)$" -and $GistUrl -notmatch "/raw$") {
+        $GistUrl = "$GistUrl/raw"
+        Write-Host "Auto-corrected Gist URL to raw format." -ForegroundColor Cyan
+    }
+    try {
+        Invoke-RestMethod -Uri $GistUrl -OutFile $globalGitConfigPath
+        Write-Host "Successfully applied Gist to $globalGitConfigPath" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Failed to download Gist. Check the URL and your internet connection." -ForegroundColor Red
+    }
+} else {
+    # Default path: use the in-repo profiles/git/.gitconfig (resolved relative to this script).
+    $repoGitConfig = Join-Path $PSScriptRoot '..\profiles\git\.gitconfig'
+    if (-not (Test-Path $repoGitConfig)) {
+        Write-Host "In-repo .gitconfig not found at $repoGitConfig — skipping. Either commit one or pass -GistUrl." -ForegroundColor Red
+    } else {
+        Write-Host "`n--- Applying in-repo .gitconfig ---" -ForegroundColor Cyan
+        Copy-Item -Path $repoGitConfig -Destination $globalGitConfigPath -Force
+        Write-Host "Copied $repoGitConfig -> $globalGitConfigPath" -ForegroundColor Green
+    }
 }
 
 # ==============================================================================

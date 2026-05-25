@@ -1,0 +1,22 @@
+# Global git config — applied to $HOME/.gitconfig by:
+#   scripts/Setup-Git-GitHub.ps1  (with user.name/user.email set live via `git config --global`)
+#   scripts/Install-Profiles.ps1
+#
+# This file is intentionally identity-free. Setup-Git-GitHub.ps1 writes user.name
+# and user.email into the file after it lands, so the repo copy stays shareable.
+#
+# PLACEHOLDER — fill in with your actual preferences. Until then this is a
+# minimal sane default that won't blow up `git config --global` calls.
+
+[init]
+	defaultBranch = main
+
+[pull]
+	rebase = false
+
+[core]
+	autocrlf = input
+	editor = code --wait
+
+[color]
+	ui = auto
