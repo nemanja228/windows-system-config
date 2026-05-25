@@ -248,10 +248,38 @@ function Should-Install { param([string]$Cat) -not $Only -or ($Only -contains $C
 # --- git ---
 
 if (Should-Install 'git') {
-    Invoke-Step -Name "git: deploy .gitconfig" -Tags @('profiles','git') -ContinueOnError -SkipOnDryRun -Action {
+    Invoke-Step -Name "git: deploy .gitconfig (identity preserved)" -Tags @('profiles','git') -ContinueOnError -SkipOnDryRun -Action {
         $src = Join-Path $repoRoot 'profiles\git\.gitconfig'
         $dst = Join-Path $HOME '.gitconfig'
-        Copy-OrLink -Source $src -Target $dst -Symlink:$Symlink -Force:$Force
+
+        # Snapshot identity via git itself (reads from current ~/.gitconfig).
+        # If git isn't installed yet, there's nothing to preserve.
+        $existingName  = ''
+        $existingEmail = ''
+        if (Get-Command git -ErrorAction SilentlyContinue) {
+            $existingName  = (& git config --global --get user.name  2>$null) -join ''
+            $existingEmail = (& git config --global --get user.email 2>$null) -join ''
+        } else {
+            Write-Log -Level DEBUG -Message "    git not on PATH yet — no identity to preserve"
+        }
+
+        # Force copy (never symlink) for .gitconfig. The repo file is identity-
+        # free by design; a symlink would route `git config --global` writes
+        # INTO the repo file, leaking personal identity into a shared file.
+        Copy-OrLink -Source $src -Target $dst -Force:$Force
+
+        if ($existingName) {
+            if ($PSCmdlet.ShouldProcess("user.name", "git config --global = $existingName")) {
+                & git config --global user.name $existingName | Out-Null
+                Write-Log -Level DEBUG -Message "    restored user.name  = $existingName"
+            }
+        }
+        if ($existingEmail) {
+            if ($PSCmdlet.ShouldProcess("user.email", "git config --global = $existingEmail")) {
+                & git config --global user.email $existingEmail | Out-Null
+                Write-Log -Level DEBUG -Message "    restored user.email = $existingEmail"
+            }
+        }
     }
 }
 

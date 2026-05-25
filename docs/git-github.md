@@ -1,83 +1,79 @@
 # Git and GitHub
 
-How `scripts/Setup-Git-GitHub.ps1` works, the in-repo `.gitconfig` setup, and the multi-account SSH pattern.
+Three concerns, three entry points — each idempotent, each does one thing well.
+
+| You want to... | Use |
+|---|---|
+| Install git + apply repo gitconfig + set identity (first-time OR routine sync) | [`scripts/Setup-Git.ps1`](../scripts/Setup-Git.ps1) |
+| Add a new GitHub SSH profile (reusable per account) | [`scripts/New-GitHubSshProfile.ps1`](../scripts/New-GitHubSshProfile.ps1) |
+| Just refresh `~/.gitconfig` from the repo (identity preserved) | `Install-Profiles.ps1 -Only git` (also runs as part of bootstrap) |
 
 ---
 
-## What the script does
+## Setup-Git.ps1 — install + gitconfig + identity
 
-`scripts/Setup-Git-GitHub.ps1` is an interactive, one-shot setup. Required parameters:
-
-- `-SshEmail` — email address embedded in the SSH key comment
-- `-KeyAlias` — filename for the SSH key (e.g. `id_ed25519_personal`)
-- `-HostAlias` — SSH config alias (`github.com`, or `github.com-work` for multi-account)
-- `-GitUserName` — full name for git commits
-- `-GitUserEmail` — primary email for git commits
-
-Optional:
-
-- `-GistUrl` — fetch global `.gitconfig` from a remote Gist instead of the in-repo file. Most users don't need this.
-
-Example:
+Run on first install, or any time after — fully idempotent. No mandatory parameters.
 
 ```powershell
-.\scripts\Setup-Git-GitHub.ps1 `
-    -SshEmail 'you@example.com' `
-    -KeyAlias 'id_ed25519_github' `
-    -HostAlias 'github.com' `
-    -GitUserName 'Your Name' `
-    -GitUserEmail 'you@example.com'
+.\scripts\Setup-Git.ps1
+# Install git if missing; deploy repo gitconfig (preserves existing identity);
+# prompt for name/email only if neither already set globally.
+
+.\scripts\Setup-Git.ps1 -GitUserName "Nemanja Raković" -GitUserEmail "me@example.com"
+# Same but identity values come from params instead of prompts.
+
+.\scripts\Setup-Git.ps1 -Force
+# Re-run winget upgrade, overwrite gitconfig, re-set identity even if unchanged.
 ```
 
-What runs:
+What's idempotent and how:
 
-1. **Self-elevation** if not already admin.
-2. **Install / upgrade Git** via winget.
-3. **Apply global `.gitconfig`** — copies `profiles/git/.gitconfig` from the repo to `$HOME/.gitconfig`, backing up any existing one with `.gitconfig.bak_<stamp>`. (Or downloads from `-GistUrl` if you passed one.)
-4. **Set global identity** — runs `git config --global user.name "$GitUserName"` and `user.email "$GitUserEmail"`. These don't go in the in-repo `.gitconfig` so it stays shareable.
-5. **Generate ed25519 SSH key** at `~/.ssh/<KeyAlias>` (with empty passphrase — see below).
-6. **Append SSH config entry** under the given host alias.
-7. **Copy public key to clipboard** and open `https://github.com/settings/ssh/new` in your default browser. Paste the key and save.
+| Step | Skip condition |
+|---|---|
+| `winget install Git.Git` | git already on PATH (unless `-Force`) |
+| gitconfig deploy | Always copies (cheap), but **preserves `user.name`/`user.email` across the overwrite** by snapshotting via `git config --global --get` before and `--set` after |
+| identity write | New value matches current (unless `-Force`) |
+| identity prompt | Skipped if either `-GitUserName`/`-GitUserEmail` provided OR already set globally |
 
----
+The gitconfig deploy delegates to `Install-Profiles.ps1 -Only git -NoInit`, so the same machinery + identity preservation runs whether you invoked `Setup-Git`, `Install-Profiles`, or full `bootstrap.ps1` step `80-profiles`.
 
-## Why an in-repo `.gitconfig`?
+## New-GitHubSshProfile.ps1 — per-account SSH
 
-The repo holds `profiles/git/.gitconfig` — the actual global config. Originally this was a public Gist, which meant maintaining two sources of truth (Gist + script's `-GistUrl` default). Bringing it in-repo:
+Generates an ed25519 key, appends a `Host` block to `~/.ssh/config`, copies the public key to your clipboard, opens GitHub's SSH-keys page so you can paste.
 
-- Single source of truth, versioned with everything else.
-- No network dependency for setup once you've cloned.
-- The file IS identity-free — no `[user] name=…` block. The script writes `user.name` / `user.email` via `git config --global` after the file lands, so the in-repo copy stays shareable / forkable.
-
-If you want to override the in-repo config on a specific machine (custom work setup, different defaults), pass `-GistUrl <raw-url>` to fetch from anywhere. Same machinery, different source.
-
-Future Linux split (if you ever go full Linux): add `profiles/git/.gitconfig.windows` + `profiles/git/.gitconfig.linux` and have `Install-Profiles.ps1` (or its Linux equivalent) pick by `$IsWindows`/`$IsLinux`. Not designed for now.
-
----
-
-## Multi-account SSH
-
-For multiple GitHub accounts (personal + work, etc.), generate a separate key per account and give each a distinct SSH host alias.
+Reusable: pick distinct `-KeyAlias` and `-HostAlias` per GitHub account.
 
 ```powershell
-# Personal — primary account
-.\scripts\Setup-Git-GitHub.ps1 `
-    -SshEmail 'me@personal.com' `
-    -KeyAlias 'id_ed25519_personal' `
-    -HostAlias 'github.com' `
-    -GitUserName 'Your Name' `
-    -GitUserEmail 'me@personal.com'
+# Primary account (default KeyAlias=id_ed25519_github, HostAlias=github.com)
+.\scripts\New-GitHubSshProfile.ps1 -Email 'me@personal.com'
 
-# Work — secondary alias
-.\scripts\Setup-Git-GitHub.ps1 `
-    -SshEmail 'you@work.com' `
+# Secondary account — distinct key file + URL alias
+.\scripts\New-GitHubSshProfile.ps1 `
+    -Email 'me@work.com' `
     -KeyAlias 'id_ed25519_work' `
-    -HostAlias 'github.com-work' `
-    -GitUserName 'Your Name' `
-    -GitUserEmail 'you@work.com'
+    -HostAlias 'github.com-work'
+
+# A different host entirely (e.g. GitLab)
+.\scripts\New-GitHubSshProfile.ps1 `
+    -Email 'me@gitlab.com' `
+    -KeyAlias 'id_ed25519_gitlab' `
+    -HostAlias 'gitlab.com' `
+    -HostName 'gitlab.com'
 ```
 
-After both run, `~/.ssh/config` looks like:
+Idempotent:
+
+| Step | Skip condition |
+|---|---|
+| `ssh-keygen` | `~/.ssh/<KeyAlias>` already exists |
+| `~/.ssh/config` entry | A `Host <HostAlias>` block is already there |
+| Clipboard + browser open | Always runs (useful if the key isn't on GitHub yet) |
+
+The script does NOT touch git itself — no install, no gitconfig, no identity. Run `Setup-Git.ps1` for those, or invoke `git config` directly.
+
+## Multi-account workflow
+
+After both scripts have run (one Setup-Git, one or more New-GitHubSshProfile), `~/.ssh/config` looks like:
 
 ```
 Host github.com
@@ -93,51 +89,66 @@ Host github.com-work
     IdentitiesOnly yes
 ```
 
-To clone a work repo, replace the host in the URL:
+Clone a work repo by replacing the host in the URL:
 
 ```bash
-# Original (uses personal):
+# Original (uses primary account):
 git clone git@github.com:work-org/repo.git
 
-# Work alias:
+# Work alias (uses id_ed25519_work):
 git clone git@github.com-work:work-org/repo.git
 ```
 
-Personal projects keep working with the default `github.com` host. The script runs `git config --global user.email` for whichever invocation ran last — for per-repo identity overrides, use the per-repo `git config user.email "…"` inside each clone.
-
-For finer-grained identity rules (e.g. all repos under `~/work/` use work identity automatically), use `includeIf` in `.gitconfig`:
+For per-repo identity overrides (e.g. all repos under `~/work/` use work email automatically), add `includeIf` to your global config:
 
 ```
 [includeIf "gitdir:~/work/"]
     path = ~/.gitconfig-work
 ```
 
-with `~/.gitconfig-work` containing the work `[user]` block. This isn't in the in-repo `.gitconfig` because the path varies per machine.
+`~/.gitconfig-work` then contains the work `[user]` block. This is NOT in the repo's `profiles/git/.gitconfig` because the path varies per machine — but you can edit `~/.gitconfig` directly (it survives subsequent `Install-Profiles` runs since identity preservation works at the section level, and `includeIf` blocks are preserved too… actually, no — only `user.name` and `user.email` are explicitly preserved; if you add other identity-related sections you may want to put them in `profiles/git/.gitconfig` instead so they're version-controlled).
 
----
+## Why an in-repo `.gitconfig`?
+
+The repo holds `profiles/git/.gitconfig` — the actual global config. Originally this was a public Gist, which meant maintaining two sources of truth. Bringing it in-repo:
+
+- Single source of truth, versioned with everything else.
+- No network dependency once you've cloned.
+- File is identity-free (no `[user] name=…` block). Identity is set via `git config --global` and preserved across redeploys.
+
+Future Linux split: add `profiles/git/.gitconfig.windows` + `profiles/git/.gitconfig.linux`, branch by `$IsWindows`/`$IsLinux` in the deploy logic. Not built today; current `.gitconfig` covers both OSes.
 
 ## SSH key passphrase
 
-The script generates ed25519 keys with **empty passphrase** (`ssh-keygen -N '""'`). Tradeoff:
+`New-GitHubSshProfile.ps1` generates ed25519 keys with **empty passphrase** (`-N '""'`). Tradeoff:
 
 - **Pro**: No prompts during `git push` / `git fetch`. Smooth CLI experience.
-- **Con**: If your `~/.ssh/` is exfiltrated, the keys are useable directly.
+- **Con**: If your `~/.ssh/` is exfiltrated, the keys are directly usable.
 
-If you want passphrases, edit the script to remove `-N '""'` and let ssh-keygen prompt interactively. The OpenSSH agent (`ssh-agent` service on Windows) will cache the unlocked key for the session.
-
----
+If you want passphrases, edit the script to drop `-N '""'`. The OpenSSH agent (`ssh-agent` service on Windows) caches unlocked keys for the session.
 
 ## Verifying
 
-After setup:
+After Setup-Git + New-GitHubSshProfile have run:
 
 ```powershell
 git config --global --list      # should show user.name, user.email, plus everything from profiles/git/.gitconfig
-ssh -T git@github.com           # should respond: "Hi <username>! You've successfully authenticated..."
+ssh -T git@github.com           # "Hi <username>! You've successfully authenticated..."
 ssh -T git@github.com-work      # only if you set up a -work host alias
 ```
 
 If `ssh -T` fails:
 
 - **Permission denied (publickey)**: GitHub doesn't have the public key yet. Re-open `https://github.com/settings/ssh` and paste from `~/.ssh/<KeyAlias>.pub` (`Get-Content ~/.ssh/id_ed25519_personal.pub | Set-Clipboard`).
-- **Could not resolve hostname**: typo in the host alias, or the SSH config has a syntax error. `ssh -G github.com` shows what config the client is reading.
+- **Could not resolve hostname**: typo in the host alias, or `~/.ssh/config` has a syntax error. `ssh -G github.com` shows what config the client is reading.
+
+## The bootstrap touch-point
+
+`bootstrap.ps1` step `80-profiles` calls `Install-Profiles.ps1 -NoInit` which deploys the gitconfig with **identity preservation**. So after a fresh bootstrap your `~/.gitconfig` matches the repo's content + retains identity (if any was set beforehand).
+
+If you've never set identity, bootstrap's run completes but `git commit` will then fail until you set it. Either run `Setup-Git.ps1` (prompts for name/email) or set directly:
+
+```powershell
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```

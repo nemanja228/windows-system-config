@@ -66,14 +66,15 @@ windows-system-config/
 │   └── Microsoft.VisualStudioCode.ps1  # Extension install
 │
 ├── scripts/                       # Standalone interactive scripts (not in bootstrap)
-│   ├── Setup-Git-GitHub.ps1       # Git + SSH key + global .gitconfig
-│   ├── Install-Profiles.ps1       # Deploy profiles/ into OS locations
+│   ├── Setup-Git.ps1              # Install git + deploy gitconfig + set identity (idempotent)
+│   ├── New-GitHubSshProfile.ps1   # Add a GitHub SSH profile (idempotent, reusable per account)
+│   ├── Install-Profiles.ps1       # Deploy profiles/ into OS locations (incl. git w/ identity preservation)
 │   ├── Install-ClaudeCode.ps1     # Anthropic installer + PATH add
 │   └── Test-RegImport.ps1         # Diagnose per-value reg import failures
 │
 ├── profiles/                      # Personal user-level configs (no personal IDs)
 │   ├── README.md
-│   ├── git/.gitconfig             # Identity-free; user.name/email set live by Setup-Git-GitHub
+│   ├── git/.gitconfig             # Identity-free; user.name/email set live by Setup-Git, preserved across redeploys
 │   ├── powershell/Microsoft.PowerShell_profile.ps1
 │   ├── windows-terminal/settings.json   # JSONC, profiles.list intentionally omitted
 │   ├── oh-my-posh/winsetup.omp.json
@@ -126,8 +127,13 @@ All PowerShell commands run from the repo root. `bootstrap.ps1` has `#Requires -
 Standalone scripts (interactive, not invoked by `bootstrap.ps1`):
 
 ```powershell
-# Git + GitHub + global .gitconfig (default uses in-repo config; -GistUrl optional)
-.\scripts\Setup-Git-GitHub.ps1 -SshEmail ... -KeyAlias ... -HostAlias ... -GitUserName ... -GitUserEmail ...
+# Git: install + apply repo .gitconfig + set identity (idempotent, identity preserved)
+.\scripts\Setup-Git.ps1                                                   # auto-prompts only if identity missing
+.\scripts\Setup-Git.ps1 -GitUserName 'X' -GitUserEmail 'y@example.com'    # set explicitly
+
+# New SSH profile (reusable per GitHub account; idempotent)
+.\scripts\New-GitHubSshProfile.ps1 -Email 'me@example.com'
+.\scripts\New-GitHubSshProfile.ps1 -Email 'me@work.com' -KeyAlias 'id_ed25519_work' -HostAlias 'github.com-work'
 
 # Deploy profiles into OS locations (copy by default; -Symlink needs elevation or Dev Mode)
 .\scripts\Install-Profiles.ps1

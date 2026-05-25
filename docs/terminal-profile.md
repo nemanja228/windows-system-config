@@ -13,7 +13,7 @@ How `profiles/` works and how `scripts/Install-Profiles.ps1` deploys files into 
 | `profiles/windows-terminal/settings.json` | `%LocalAppData%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json` | Single Windows Terminal config. App reads this live, no restart needed. |
 | `profiles/powershell/Microsoft.PowerShell_profile.ps1` | `$PROFILE.CurrentUserAllHosts` (typically `~\Documents\PowerShell\profile.ps1` for PS 7+, or `~\Documents\WindowsPowerShell\` for 5.1) | Sourced at every PS session start. |
 | `profiles/oh-my-posh/theme.omp.json` | `%LocalAppData%\oh-my-posh\theme.omp.json` (path is your choice — PS profile references it) | OMP prompt theme. |
-| `profiles/git/.gitconfig` | `~/.gitconfig` | Global git config. Already covered by `Setup-Git-GitHub.ps1`; `Install-Profiles.ps1` does the same copy as a fallback. |
+| `profiles/git/.gitconfig` | `~/.gitconfig` | Global git config. Also handled by `Setup-Git.ps1` (which delegates to `Install-Profiles.ps1 -Only git` internally). Identity (`user.name`/`user.email`) is preserved across the deploy. |
 
 ---
 

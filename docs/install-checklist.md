@@ -85,28 +85,41 @@ Then:
 
 ## 9. Git and GitHub
 
-Run [`../scripts/Setup-Git-GitHub.ps1`](../scripts/Setup-Git-GitHub.ps1) — interactive, prompts for parameters:
+Two scripts, each handles one concern. Both idempotent.
+
+### Setup-Git: install git + apply repo gitconfig + set identity
 
 ```powershell
-.\scripts\Setup-Git-GitHub.ps1 `
-    -SshEmail 'you@example.com' `
-    -KeyAlias 'id_ed25519_github' `
-    -HostAlias 'github.com' `
-    -GitUserName 'Your Name' `
-    -GitUserEmail 'you@example.com'
+.\scripts\Setup-Git.ps1 -GitUserName 'Your Name' -GitUserEmail 'you@example.com'
+# or
+.\scripts\Setup-Git.ps1
+# (with no params, prompts only if identity isn't already globally set)
 ```
 
-What it does:
+- Installs git via winget if missing.
+- Deploys `profiles/git/.gitconfig` to `$HOME/.gitconfig` while preserving any existing `user.name`/`user.email` (snapshot via `git config --global --get` → restore after overwrite).
+- Sets identity if you passed params AND they differ from current; otherwise leaves alone.
 
-- Installs Git via winget (or upgrades if already installed)
-- Generates a new ed25519 SSH key and an SSH config entry under the given host alias
-- Copies the public key to your clipboard and opens https://github.com/settings/ssh/new in your browser — paste and save
-- Copies `profiles/git/.gitconfig` from the repo to `$HOME/.gitconfig` (backing up any existing one)
-- Sets `user.name` and `user.email` globally via `git config --global`
+### New-GitHubSshProfile: add an SSH key for a GitHub account
 
-If you want to fetch from a remote Gist instead of the repo file (one-off machine, custom config), pass `-GistUrl <url>`.
+```powershell
+.\scripts\New-GitHubSshProfile.ps1 -Email 'you@example.com'
+# Default KeyAlias=id_ed25519_github, HostAlias=github.com.
 
-See [`git-github.md`](git-github.md) for multi-account SSH setup and the in-repo `.gitconfig` rationale.
+# For a second account:
+.\scripts\New-GitHubSshProfile.ps1 `
+    -Email 'me@work.com' `
+    -KeyAlias 'id_ed25519_work' `
+    -HostAlias 'github.com-work'
+```
+
+- Generates an ed25519 key (skips if `~/.ssh/<KeyAlias>` already exists).
+- Appends a `Host <HostAlias>` block to `~/.ssh/config` (skips if already present).
+- Copies the public key to your clipboard and opens `https://github.com/settings/ssh/new` so you can paste.
+
+Re-runnable per account — pick different KeyAlias/HostAlias each time.
+
+See [`git-github.md`](git-github.md) for the multi-account URL trick, `includeIf` per-repo identity, and verification commands.
 
 ## 10. Run `bootstrap.ps1` (the workhorse)
 

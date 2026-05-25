@@ -15,7 +15,7 @@ The repo holds the *source* version of each file; the installer copies (or symli
 
 ### `git/.gitconfig`
 
-Global git config (no `[user]` block — identity is set live by `scripts/Setup-Git-GitHub.ps1` so this file stays shareable).
+Global git config (no `[user]` block — identity is set live by `scripts/Setup-Git.ps1` so this file stays shareable). When deployed via `Install-Profiles.ps1` or step `80-profiles`, existing `user.name`/`user.email` in `~/.gitconfig` are snapshotted via `git config --global --get` before the overwrite and restored after — running the deploy never wipes identity.
 
 Target: `$HOME\.gitconfig`
 
