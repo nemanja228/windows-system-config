@@ -198,11 +198,19 @@ If you skip the apps step initially and want to re-run just the post-install hoo
 
 Some apps either aren't on winget, are version-pinned to a release winget doesn't carry, or need vendor-specific account setup that scripts can't automate. This section is the canonical list.
 
+**Archived vendor installers** that have been pulled from the vendor's official downloads (but you've kept a working copy) live at:
+
+```
+D:\data\installers\
+```
+
+`D:\data\` is Insync-synced to Google Drive, so the binaries survive a laptop wipe. Keep filenames descriptive (`<Vendor>-<Product>-<version>.exe`) so future-you remembers what each one is.
+
 ### Apps not on winget (or version-pinned)
 
 - [ ] **Microsoft Office** — download via Office Deployment Tool from <https://www.microsoft.com/en-us/download/details.aspx?id=49117> with custom XML config (generate at <https://config.office.com>). Install Word / Excel / PowerPoint / Outlook, skip OneNote / Teams / Publisher / Skype. Activate by signing into Word > File > Account.
-- [ ] **CoolerMaster MasterPlus+** — for MK750 keyboard customization. Download from <https://www.coolermaster.com/en-global/software/masterplus/>.
-- [ ] **Native Instruments Guitar Rig** — install via **Native Access** from <https://www.native-instruments.com/en/specials/native-access-2/>, then use Native Access to install Guitar Rig.
+- [ ] **CoolerMaster MasterPlus+** — for MK750 keyboard customization. **Vendor pulled the official download.** Use the archived installer at `D:\data\installers\CoolerMaster-MasterPlus-<version>.exe`. Right-click → Run as administrator.
+- [ ] **Native Instruments Guitar Rig** — install via **Native Access** from <https://www.native-instruments.com/en/specials/native-access-2/>, then use Native Access to install Guitar Rig. (If Native Access itself ever gets pulled, archive the installer to `D:\data\installers\` too.)
 - [ ] **Arturia keyboard software** — install via **Arturia Software Center** from <https://www.arturia.com/support/downloads&manuals>, then use ASC to install your specific keyboard's product page.
 
 ### Vendor / hardware drivers not in MyASUS Live Update
