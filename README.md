@@ -71,8 +71,10 @@ Pre-flight (admin, network, OS build, exec policy) has no tags and **always runs
 | `defender` | Defender exclusions |
 | `apps` | winget source + tiered import + post-apps tweaks re-import |
 | `extras` | `post-install/<package-id>.ps1` hooks for installed apps |
+| `search` | Disable Windows Search service (Everything replaces it — see [`docs/debloat.md`](docs/debloat.md)) |
 | `features` | Hyper-V / WSL / VMP / Sandbox |
 | `wsl` | WSL kernel + Ubuntu + `.wslconfig` |
+| `profiles` | Deploy `profiles/` files (PS profile, WT, OMP, fonts, AHK, `.gitconfig`) via `Install-Profiles.ps1` |
 | `checklist` | `TODO-post-install.txt` on Desktop |
 
 Step runs if **any** of its tags is in your `-Steps` list.

@@ -69,7 +69,14 @@ param(
     [switch]$Force,
 
     [ValidateSet('git','pwsh','omp','wt','fonts','ahk')]
-    [string[]]$Only
+    [string[]]$Only,
+
+    # When set, skip own Initialize-Logging + Show-Summary so this script can
+    # share the calling session's logger (e.g. when invoked from bootstrap's
+    # steps/80-profiles.ps1). Inner Invoke-Step calls still write to the
+    # module's shared $script:Summary, so categories show up in the caller's
+    # summary table.
+    [switch]$NoInit
 )
 
 # =============================================================================
@@ -79,20 +86,31 @@ param(
 $scriptDir = $PSScriptRoot
 $repoRoot  = Split-Path -Parent $scriptDir
 $modulePath = Join-Path $repoRoot 'lib\WinSetup'
-Import-Module $modulePath -Force
 
-$init = Initialize-Logging -LogPrefix 'install-profiles'
-$script:LogDir   = $init.LogDir
-$script:LogStamp = $init.Stamp
+# When -NoInit is set, a parent session (e.g. bootstrap.ps1) has already loaded
+# the module and populated its $script:Summary / $script:LogDryRun. Re-importing
+# with -Force would reset those and break the integration. So: import without
+# -Force when the module is already loaded.
+if (Get-Module -Name WinSetup) {
+    Import-Module $modulePath -ErrorAction SilentlyContinue
+} else {
+    Import-Module $modulePath -Force
+}
 
-Write-Log -Level STEP -Message "==============================================="
-Write-Log -Level STEP -Message " win-setup Install-Profiles"
-Write-Log -Level STEP -Message "==============================================="
-Write-Log -Level INFO -Message "Repo:   $repoRoot"
-Write-Log -Level INFO -Message "Mode:   $(if ($Symlink) { 'Symlink' } else { 'Copy' })"
-Write-Log -Level INFO -Message "Force:  $($Force.IsPresent)"
-Write-Log -Level INFO -Message "WhatIf: $($WhatIfPreference)"
-if ($Only) { Write-Log -Level INFO -Message "Only:   $($Only -join ',')" }
+if (-not $NoInit) {
+    $init = Initialize-Logging -LogPrefix 'install-profiles'
+    $script:LogDir   = $init.LogDir
+    $script:LogStamp = $init.Stamp
+
+    Write-Log -Level STEP -Message "==============================================="
+    Write-Log -Level STEP -Message " win-setup Install-Profiles"
+    Write-Log -Level STEP -Message "==============================================="
+    Write-Log -Level INFO -Message "Repo:   $repoRoot"
+    Write-Log -Level INFO -Message "Mode:   $(if ($Symlink) { 'Symlink' } else { 'Copy' })"
+    Write-Log -Level INFO -Message "Force:  $($Force.IsPresent)"
+    Write-Log -Level INFO -Message "WhatIf: $($WhatIfPreference)"
+    if ($Only) { Write-Log -Level INFO -Message "Only:   $($Only -join ',')" }
+}
 
 # =============================================================================
 # Helpers
@@ -230,7 +248,7 @@ function Should-Install { param([string]$Cat) -not $Only -or ($Only -contains $C
 # --- git ---
 
 if (Should-Install 'git') {
-    Invoke-Step -Name "git: deploy .gitconfig" -Tags @('profiles','git') -ContinueOnError -Action {
+    Invoke-Step -Name "git: deploy .gitconfig" -Tags @('profiles','git') -ContinueOnError -SkipOnDryRun -Action {
         $src = Join-Path $repoRoot 'profiles\git\.gitconfig'
         $dst = Join-Path $HOME '.gitconfig'
         Copy-OrLink -Source $src -Target $dst -Symlink:$Symlink -Force:$Force
@@ -240,7 +258,7 @@ if (Should-Install 'git') {
 # --- pwsh ---
 
 if (Should-Install 'pwsh') {
-    Invoke-Step -Name "pwsh: deploy `$PROFILE.CurrentUserAllHosts" -Tags @('profiles','pwsh') -ContinueOnError -Action {
+    Invoke-Step -Name "pwsh: deploy `$PROFILE.CurrentUserAllHosts" -Tags @('profiles','pwsh') -ContinueOnError -SkipOnDryRun -Action {
         $src = Join-Path $repoRoot 'profiles\powershell\Microsoft.PowerShell_profile.ps1'
         $dst = $PROFILE.CurrentUserAllHosts
         if (-not $dst) {
@@ -255,7 +273,7 @@ if (Should-Install 'pwsh') {
 # --- omp ---
 
 if (Should-Install 'omp') {
-    Invoke-Step -Name "omp: deploy themes" -Tags @('profiles','omp') -ContinueOnError -Action {
+    Invoke-Step -Name "omp: deploy themes" -Tags @('profiles','omp') -ContinueOnError -SkipOnDryRun -Action {
         $srcDir = Join-Path $repoRoot 'profiles\oh-my-posh'
         $dstDir = Join-Path $env:LocalAppData 'oh-my-posh\themes'
         $themes = Get-ChildItem -Path $srcDir -Filter '*.omp.json' -File
@@ -273,7 +291,7 @@ if (Should-Install 'omp') {
 # --- wt ---
 
 if (Should-Install 'wt') {
-    Invoke-Step -Name "wt: deploy settings.json" -Tags @('profiles','wt') -ContinueOnError -Action {
+    Invoke-Step -Name "wt: deploy settings.json" -Tags @('profiles','wt') -ContinueOnError -SkipOnDryRun -Action {
         $src = Join-Path $repoRoot 'profiles\windows-terminal\settings.json'
         $dst = Join-Path $env:LocalAppData 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json'
         if (-not (Test-Path (Split-Path -Parent $dst))) {
@@ -287,7 +305,7 @@ if (Should-Install 'wt') {
 # --- fonts ---
 
 if (Should-Install 'fonts') {
-    Invoke-Step -Name "fonts: install Nerd Fonts" -Tags @('profiles','fonts') -ContinueOnError -Action {
+    Invoke-Step -Name "fonts: install Nerd Fonts" -Tags @('profiles','fonts') -ContinueOnError -SkipOnDryRun -Action {
         $srcDir = Join-Path $repoRoot 'profiles\fonts'
         if (-not (Test-Path $srcDir)) {
             Write-Log -Level WARN -Message "  profiles\fonts\ does not exist — skipping"
@@ -307,7 +325,7 @@ if (Should-Install 'fonts') {
 # --- ahk ---
 
 if (Should-Install 'ahk') {
-    Invoke-Step -Name "ahk: startup shortcut for WtTransparent.ahk" -Tags @('profiles','ahk') -ContinueOnError -Action {
+    Invoke-Step -Name "ahk: startup shortcut for WtTransparent.ahk" -Tags @('profiles','ahk') -ContinueOnError -SkipOnDryRun -Action {
         $src = Join-Path $repoRoot 'profiles\autohotkey\WtTransparent.ahk'
         if (-not (Test-Path -LiteralPath $src)) {
             Write-Log -Level WARN -Message "  $src not found — skipping"
@@ -318,16 +336,18 @@ if (Should-Install 'ahk') {
 }
 
 # =============================================================================
-# Wrap up
+# Wrap up — only when standalone (bootstrap's dispatcher handles its own).
 # =============================================================================
 
-Show-Summary
+if (-not $NoInit) {
+    Show-Summary
 
-$failed = (Get-StepSummary | Where-Object { -not $_.Success }).Count
-if ($failed -eq 0) {
-    Write-Log -Level SUCCESS -Message "Install-Profiles complete."
-    exit 0
-} else {
-    Write-Log -Level WARN -Message "$failed step(s) failed."
-    exit 1
+    $failed = (Get-StepSummary | Where-Object { -not $_.Success }).Count
+    if ($failed -eq 0) {
+        Write-Log -Level SUCCESS -Message "Install-Profiles complete."
+        exit 0
+    } else {
+        Write-Log -Level WARN -Message "$failed step(s) failed."
+        exit 1
+    }
 }

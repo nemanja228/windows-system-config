@@ -129,7 +129,9 @@ What it covers (each step idempotent, tag-filtered, logged):
 - Defender exclusions for dev/audio dirs
 - Hyper-V / WSL / VMP / Sandbox features
 - WSL Ubuntu install + `.wslconfig`
-- Post-install hooks for each installed app (e.g. Notepad++ plugins)
+- Post-install hooks for each installed app (e.g. Notepad++ plugins, VS Code extensions)
+- Windows Search service disabled (Everything covers file-name search; Outlook content search disabled — see [`debloat.md`](debloat.md))
+- Profile deployment: PS profile / Windows Terminal settings / OMP theme / Caskaydia Cove fonts / AHK startup shortcut / `.gitconfig`
 - A `TODO-post-install.txt` file on Desktop with anything that has to be done manually
 
 **App tiers** — `bootstrap.ps1 -Tiers common,professional,personal` (default: all three). See [`../resources/winget/`](../resources/winget/) for the tier-file contents:
@@ -142,12 +144,15 @@ What it covers (each step idempotent, tag-filtered, logged):
 
 ## 11. Windows Terminal, PowerShell, Oh-My-Posh
 
-Real configs live in [`../profiles/`](../profiles/). Install them via:
+Profile files (PS profile, WT settings, OMP theme, fonts, AHK script) live in [`../profiles/`](../profiles/) and **deploy automatically as step `80-profiles` in the bootstrap run**. No extra command needed for the default flow.
+
+For ad-hoc redeployment (e.g. after you edit a profile file in the repo), run the standalone script:
 
 ```powershell
 .\scripts\Install-Profiles.ps1            # copy
-.\scripts\Install-Profiles.ps1 -Symlink   # symlink (requires elevation on Windows)
-.\scripts\Install-Profiles.ps1 -WhatIf    # see what would happen
+.\scripts\Install-Profiles.ps1 -Symlink   # symlink (requires elevation or Dev Mode)
+.\scripts\Install-Profiles.ps1 -WhatIf    # preview only
+.\scripts\Install-Profiles.ps1 -Only git,pwsh   # just specific categories
 ```
 
 See [`terminal-profile.md`](terminal-profile.md) for what each file does and where it lands.

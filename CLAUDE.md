@@ -46,9 +46,11 @@ windows-system-config/
 │   ├── 30-region.ps1              # time zone + taskbar autohide
 │   ├── 40-power.ps1               # High Performance plan + USB suspend + LSPM + timeouts
 │   ├── 50-defender.ps1            # Defender exclusions for dev/audio dirs
+│   ├── 55-search.ps1              # Disable Windows Search service (optional, tag 'search')
 │   ├── 60-apps.ps1                # winget source update + tiered import + post-apps tweaks re-import
 │   ├── 61-app-extras.ps1          # auto-run post-install/<PackageId>.ps1 hooks
 │   ├── 70-features-wsl.ps1        # Windows features + WSL update/install + .wslconfig
+│   ├── 80-profiles.ps1            # Wraps scripts/Install-Profiles.ps1 (-NoInit), deploys profiles/
 │   └── 90-checklist.ps1           # TODO-post-install.txt on Desktop
 │
 ├── resources/                     # Input data consumed by step scripts
@@ -182,10 +184,12 @@ Module helpers used by steps:
 4. **`30-region.ps1`** (`core, config`) — `Central Europe Standard Time` via `Set-TimeZone` (no-op when already correct), taskbar autohide via `StuckRects3` binary blob (flips bit 0 of byte 8 — 0x02 = visible, 0x03 = autohidden; restarts explorer.exe).
 5. **`40-power.ps1`** (`core, power`) — duplicate High Performance scheme if not present, disable USB selective suspend on AC+DC (DPC latency for EVO 4), disable Link State Power Management on AC, set display/sleep timeouts + lid=sleep + `powercfg /hibernate off`.
 6. **`50-defender.ps1`** (`core, defender`) — exclusions for `~/source`, `~/projects`, `~/.vscode`, `~/.nuget`, REAPER Media dirs, `C:\ProgramData\Audient`.
-7. **`60-apps.ps1`** (`apps`) — `winget source update`, then `winget import` for each `apps.<tier>.json` matched by `-Tiers` (default: all three: common, professional, personal). After successful import, **re-applies `tweaks.reg`** via `Import-RegFilePerValue` — cheap (~1s, mostly no-ops) and cleans up installer-created context-menu entries (Git Bash, "Open with Notepad", etc.) that step 20 couldn't catch because the apps weren't installed yet.
-8. **`61-app-extras.ps1`** (`apps, extras`) — scans `post-install/*.ps1`. For each, strips `.ps1` to get the package id, checks `winget list --id <id> --exact`, and if installed, compares SHA-256 of the script content against a sentinel at `%LocalAppData%\win-setup\post-install\<id>.hash`. If hash differs (or sentinel missing) runs the script with `Invoke-Step`; else skips with DEBUG. `-ForceAppExtras` clears sentinels first.
-9. **`70-features-wsl.ps1`** (`features` / `wsl`) — Hyper-V, VMP, WSL, Sandbox features (`-NoRestart`), `wsl --update`, install Ubuntu if absent, write `~/.wslconfig` (16GB / 8 procs / sparseVhd / autoMemoryReclaim=gradual). Preserves existing `.wslconfig` unless `-ForceWslConfig`.
-10. **`90-checklist.ps1`** (`checklist`) — generates `TODO-post-install.txt` on Desktop with the manual steps (reboot, BIOS, MyASUS, Audient driver, OLED preservation, Office, eUprava, Guitar Pro 7.5, Native Instruments, etc.).
+7. **`55-search.ps1`** (`search`) — disables Windows Search service (sets WSearch StartupType=Disabled + Stop-Service). Idempotent (no-op when already disabled+stopped). Outlook content search breaks; Start file search breaks; Everything replaces them. See `docs/debloat.md` for the full tradeoff write-up.
+8. **`60-apps.ps1`** (`apps`) — `winget source update`, then `winget import` for each `apps.<tier>.json` matched by `-Tiers` (default: all three: common, professional, personal). After successful import, **re-applies `tweaks.reg`** via `Import-RegFilePerValue` — cheap (~1s, mostly no-ops) and cleans up installer-created context-menu entries (Git Bash, "Open with Notepad", etc.) that step 20 couldn't catch because the apps weren't installed yet.
+9. **`61-app-extras.ps1`** (`apps, extras`) — scans `post-install/*.ps1`. For each, strips `.ps1` to get the package id, checks `winget list --id <id> --exact`, and if installed, compares SHA-256 of the script content against a sentinel at `%LocalAppData%\win-setup\post-install\<id>.hash`. If hash differs (or sentinel missing) runs the script with `Invoke-Step`; else skips with DEBUG. `-ForceAppExtras` clears sentinels first.
+10. **`70-features-wsl.ps1`** (`features` / `wsl`) — Hyper-V, VMP, WSL, Sandbox features (`-NoRestart`), `wsl --update`, install Ubuntu if absent, write `~/.wslconfig` (16GB / 8 procs / sparseVhd / autoMemoryReclaim=gradual). Preserves existing `.wslconfig` unless `-ForceWslConfig`.
+11. **`80-profiles.ps1`** (`profiles` + per-category sub-tags: `git`, `pwsh`, `omp`, `wt`, `fonts`, `ahk`) — thin wrapper that invokes `scripts/Install-Profiles.ps1 -NoInit`. The inner script's six category-specific Invoke-Step calls land in the bootstrap summary because the module's `$script:Summary` is shared. `Install-Profiles.ps1` is also runnable standalone for ad-hoc redeployment after editing a `profiles/*` file.
+12. **`90-checklist.ps1`** (`checklist`) — generates `TODO-post-install.txt` on Desktop with the manual steps (reboot, BIOS, MyASUS, Audient driver, OLED preservation, Office, eUprava, Guitar Pro 7.5, Native Instruments, etc.).
 
 ### Presets
 

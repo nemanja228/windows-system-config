@@ -48,6 +48,51 @@ After bootstrap completes, step `60-apps` re-imports `tweaks.reg` to clean up co
 
 ---
 
+## Windows Search (indexing) — optional full disable
+
+Windows Search runs an indexer service (`SearchIndexer.exe`) that catalogs file content + metadata for the Start menu's file-search workflow, File Explorer's inline search bar, and Outlook's full-text content search.
+
+The indexer is a persistent background workload. If you don't rely on those specific features, disabling it reclaims noticeable CPU + I/O at idle. Step `55-search.ps1` in `bootstrap.ps1` (tag `search`) does the disable.
+
+### What still works after disabling
+
+- App launch via Start ("Start, type filename" for **apps**, not for files — apps are in the registry, not the search index)
+- **Everything** (voidtools — in `apps.common.json`) — reads the NTFS Master File Table directly, ignores Windows Search entirely. This is the replacement for file-name search.
+- Raw filesystem access (`Get-ChildItem`, `ripgrep`, etc.)
+- IDE workspace search (VS Code, JetBrains, Notepad++ all maintain their own indexes)
+
+### What stops working
+
+- **Start menu file search** — typing a filename in Start returns no file results.
+- **File Explorer inline search bar** — slow on non-indexed paths; effectively useless on big directory trees.
+- **Outlook content search** — falls back to a slow per-message scan when you search inside email bodies. Sender/subject search still works.
+- **Cortana / search highlights** — already neutered by `tweaks.reg` regardless.
+
+### How to apply
+
+Default `bootstrap.ps1` runs **every** step regardless of tag, so the search-disable step DOES execute unless you filter it out. To explicitly skip while running the rest:
+
+```powershell
+.\bootstrap.ps1 -Steps core,apps,wsl,profiles      # any tag list that excludes 'search'
+```
+
+To run **only** the search disable on an existing system:
+
+```powershell
+.\bootstrap.ps1 -Steps search
+```
+
+To re-enable Windows Search later, undo the step manually:
+
+```powershell
+Set-Service -Name WSearch -StartupType Automatic
+Start-Service -Name WSearch
+```
+
+If you discover after the fact that you actually do rely on Outlook content search, this re-enable is non-destructive — the existing index is preserved on disk and the service picks up where it left off.
+
+---
+
 ## Office-specific
 
 - **Install via Office Deployment Tool** (<https://learn.microsoft.com/en-us/deployoffice/overview-office-deployment-tool>) with a custom XML config. Generate the config at <https://config.office.com>. Include Word / Excel / PowerPoint / Outlook only; skip OneNote / Teams / Publisher / Skype unless needed.
