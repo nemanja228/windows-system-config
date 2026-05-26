@@ -48,6 +48,7 @@ Install MyASUS from the Microsoft Store, sign in, and run **Live Update** before
 | **Splendid / Display color** | Native or sRGB | "Vivid" oversaturates the already-wide-gamut OLED panel |
 | **USB-C charging** | Enabled | Up to 100W via compatible chargers |
 | **OLED Care** | Enable Pixel Refresh + Pixel Shift | Per-panel wear protection — run Pixel Refresh manually every couple of months in addition to the auto schedule |
+| **Smart Gestures** | **Off** | Same rationale as the disabled taps and 3/4-finger gestures in `resources/registry/tweaks.reg` Precision Touchpad section: touchpad is used like a mouse, no taps so the palm can rest on it absent-mindedly without firing anything, and Fn keys handle volume / brightness already so the gesture-for-media trade isn't worth the false-positive risk. Disable in MyASUS → Device Settings → Input Device (or wherever ASUS surfaces the toggle in your MyASUS build). |
 
 Many of these have no PowerShell API; that's why they live in this doc and not in `bootstrap.ps1`.
 
