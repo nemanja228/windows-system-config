@@ -45,7 +45,6 @@ win-setup/
 │   ├── 20-debloat.ps1             # Win11Debloat + OOSU10 + tweaks.reg (per-value)
 │   ├── 30-region.ps1              # time zone + taskbar autohide
 │   ├── 40-power.ps1               # High Performance plan + USB suspend + LSPM + timeouts
-│   ├── 50-defender.ps1            # Defender exclusions for dev/audio dirs
 │   ├── 55-search.ps1              # Disable Windows Search service (optional, tag 'search')
 │   ├── 60-apps.ps1                # winget source update + tiered import + post-apps tweaks re-import
 │   ├── 61-app-extras.ps1          # auto-run post-install/<PackageId>.ps1 hooks
@@ -94,7 +93,7 @@ All PowerShell commands run from the repo root. `bootstrap.ps1` has `#Requires -
 .\bootstrap.ps1
 
 # After a Windows feature update — re-flatten settings, ~60s
-.\bootstrap.ps1 -PostUpdate         # -Steps debloat,privacy,features,power,defender
+.\bootstrap.ps1 -PostUpdate         # -Steps debloat,privacy,features,power
 
 # Just apps + their post-install hooks
 .\bootstrap.ps1 -AppsOnly           # -Steps apps,extras
@@ -104,7 +103,7 @@ All PowerShell commands run from the repo root. `bootstrap.ps1` has `#Requires -
 
 # Cherry-pick by tag
 .\bootstrap.ps1 -Steps privacy           # OOSU10 + tweaks.reg
-.\bootstrap.ps1 -Steps power,defender
+.\bootstrap.ps1 -Steps power,wsl
 .\bootstrap.ps1 -Steps wsl
 .\bootstrap.ps1 -Steps extras            # just the post-install/ hooks
 
@@ -177,6 +176,7 @@ Module helpers used by steps:
 - **`Get-ResourcePath -Name 'registry/tweaks.reg'`** — resolves a path under `resources/` (or `-Area <other>` for `post-install/`, `profiles/`, etc.) against the repo root, regardless of where the calling script lives.
 - **`Import-RegFilePerValue -Path <file> -DetailLog <path>`** — splits a `.reg` into one-value temp files, imports each, returns a structured result `{ OkCount, FailCount, Failed[] }`. Used by step 20 (initial tweaks.reg) AND step 60 (post-apps re-import to clean up installer-created context-menu junk like Git Bash). Also handles `[-HKEY_...]` key-delete entries needed for the Open-with-Notepad / Git Bash / Git GUI removals.
 - **`Get-StepSummary`** — returns `$script:Summary` across the module boundary (the module's `$script:` scope is private, so bootstrap and 61-app-extras can't read it directly; this helper does).
+- **`Add-DefenderExclusion -Path <string[]> [-Source <label>]`** — wrapper around `Add-MpPreference -ExclusionPath` with structured logging. Idempotent (Defender no-ops on already-excluded paths). Called from per-app post-install hooks so each app's exclusion lives next to its other setup (VS Code → `~/.vscode`, .NET SDK → `~/.nuget`, REAPER → `~/Documents/Reaper Media`). Replaces the old centralized `50-defender.ps1` step.
 
 ### Pipeline (in execution order, by step file)
 
@@ -189,13 +189,14 @@ Module helpers used by steps:
 4. **`30-region.ps1`** (`core, config`) — `Central Europe Standard Time` via `Set-TimeZone` (no-op when already correct), taskbar autohide via `StuckRects3` binary blob (flips bit 0 of byte 8 — 0x02 = visible, 0x03 = autohidden; restarts explorer.exe).
 5. **`40-power.ps1`** (`core, power`) — duplicate High Performance scheme if not present, disable USB selective suspend on AC+DC (DPC latency for EVO 4), disable Link State Power Management on AC, set display/sleep timeouts + lid=sleep + `powercfg /hibernate off`.
 6. **`45-devdrive.ps1`** (`devdrive`) — auto-detects a Dev Drive (ReFS + Fixed, confirmed via `fsutil devdrv query`), then redirects package-manager caches (NuGet, npm, yarn, Cargo, pip, Gradle, Vcpkg, Go) to `<DevDrive>:\dev\packages\<tool>\` via per-tool user-scope env vars. Idempotent (skips already-correct mappings, WARNs+overrides ones pointing elsewhere). No-op when no Dev Drive exists. Does NOT migrate existing caches — they're abandoned, tools rebuild on demand. Drive letter is NEVER assumed; detected from volumes.
-7. **`50-defender.ps1`** (`core, defender`) — exclusions for `~/source`, `~/projects`, `~/.vscode`, `~/.nuget`, REAPER Media dirs, `C:\ProgramData\Audient`.
-8. **`55-search.ps1`** (`search`) — disables Windows Search service (sets WSearch StartupType=Disabled + Stop-Service). Idempotent (no-op when already disabled+stopped). Outlook content search breaks; Start file search breaks; Everything replaces them. See `docs/debloat.md` for the full tradeoff write-up.
-9. **`60-apps.ps1`** (`apps`) — `winget source update`, then `winget import` for each `apps.<tier>.json` matched by `-Tiers` (default: all four: common, dev, work, personal). After successful import, **re-applies `tweaks.reg`** via `Import-RegFilePerValue` — cheap (~1s, mostly no-ops) and cleans up installer-created context-menu entries (Git Bash, "Open with Notepad", etc.) that step 20 couldn't catch because the apps weren't installed yet.
-10. **`61-app-extras.ps1`** (`apps, extras`) — scans `post-install/*.ps1`. For each, strips `.ps1` to get the package id, checks `winget list --id <id> --exact`, and if installed, compares SHA-256 of the script content against a sentinel at `%LocalAppData%\win-setup\post-install\<id>.hash`. If hash differs (or sentinel missing) runs the script with `Invoke-Step`; else skips with DEBUG. `-ForceAppExtras` clears sentinels first.
-11. **`70-features-wsl.ps1`** (`features` / `wsl`) — Hyper-V, VMP, WSL, Sandbox features (`-NoRestart`), `wsl --update`, install Ubuntu if absent, write `~/.wslconfig` (16GB / 8 procs / sparseVhd / autoMemoryReclaim=gradual). Preserves existing `.wslconfig` unless `-ForceWslConfig`.
-12. **`80-profiles.ps1`** (`profiles` + per-category sub-tags: `git`, `pwsh`, `omp`, `wt`, `fonts`, `ahk`) — thin wrapper that invokes `scripts/Install-Profiles.ps1 -NoInit`. The inner script's six category-specific Invoke-Step calls land in the bootstrap summary because the module's `$script:Summary` is shared. `Install-Profiles.ps1` is also runnable standalone for ad-hoc redeployment after editing a `profiles/*` file. **pwsh deploy targets BOTH `Documents\PowerShell\` (pwsh 7) AND `Documents\WindowsPowerShell\` (PS 5.1)** so the profile loads in either host — the profile itself gates PSReadLine 2.2+ features behind `$PSVersionTable` checks. **`ahk` sub-step stages `profiles/autohotkey/WtTransparent.ahk` to `%LocalAppData%\win-setup\autohotkey\` (SHA256 hash-compare to skip when unchanged) and points the Startup shortcut at the staged copy** — repo stays freely deletable because no process holds a handle on a repo file. When the source has changed, the step stops any AHK process whose CommandLine references the staged or old repo path (targeted via CIM) before overwriting.
-13. **`85-ps-modules.ps1`** (`modules`) — installs PowerShell modules consumed by the deployed profile: `z` (directory jumper), `Terminal-Icons` (lazy-loaded on first `ls`). Trusts PSGallery first to avoid Install-Module's interactive prompt, then skips modules already in `Get-Module -ListAvailable`. CurrentUser scope, no elevation needed for the install itself.
+7. **`55-search.ps1`** (`search`) — disables Windows Search service (sets WSearch StartupType=Disabled + Stop-Service). Idempotent (no-op when already disabled+stopped). Outlook content search breaks; Start file search breaks; Everything replaces them. See `docs/debloat.md` for the full tradeoff write-up.
+8. **`60-apps.ps1`** (`apps`) — `winget source update`, then `winget import` for each `apps.<tier>.json` matched by `-Tiers` (default: all four: common, dev, work, personal). After successful import, **re-applies `tweaks.reg`** via `Import-RegFilePerValue` — cheap (~1s, mostly no-ops) and cleans up installer-created context-menu entries (Git Bash, "Open with Notepad", etc.) that step 20 couldn't catch because the apps weren't installed yet.
+9. **`61-app-extras.ps1`** (`apps, extras`) — scans `post-install/*.ps1`. For each, strips `.ps1` to get the package id, checks `winget list --id <id> --exact`, and if installed, compares SHA-256 of the script content against a sentinel at `%LocalAppData%\win-setup\post-install\<id>.hash`. If hash differs (or sentinel missing) runs the script with `Invoke-Step`; else skips with DEBUG. `-ForceAppExtras` clears sentinels first. **Per-app Defender exclusions live in these hooks** (VS Code, .NET 10 SDK, REAPER) via the `Add-DefenderExclusion` helper — there is no longer a centralized Defender step.
+10. **`70-features-wsl.ps1`** (`features` / `wsl`) — Hyper-V, VMP, WSL, Sandbox features (`-NoRestart`), `wsl --update`, install Ubuntu if absent, write `~/.wslconfig` (16GB / 8 procs / sparseVhd / autoMemoryReclaim=gradual). Preserves existing `.wslconfig` unless `-ForceWslConfig`.
+11. **`80-profiles.ps1`** (`profiles` + per-category sub-tags: `git`, `pwsh`, `omp`, `wt`, `fonts`, `ahk`) — thin wrapper that invokes `scripts/Install-Profiles.ps1 -NoInit`. The inner script's six category-specific Invoke-Step calls land in the bootstrap summary because the module's `$script:Summary` is shared. `Install-Profiles.ps1` is also runnable standalone for ad-hoc redeployment after editing a `profiles/*` file. **pwsh deploy targets BOTH `Documents\PowerShell\` (pwsh 7) AND `Documents\WindowsPowerShell\` (PS 5.1)** so the profile loads in either host — the profile itself gates PSReadLine 2.2+ features behind `$PSVersionTable` checks. **`ahk` sub-step stages `profiles/autohotkey/WtTransparent.ahk` to `%LocalAppData%\win-setup\autohotkey\` (SHA256 hash-compare to skip when unchanged) and points the Startup shortcut at the staged copy** — repo stays freely deletable because no process holds a handle on a repo file. When the source has changed, the step stops any AHK process whose CommandLine references the staged or old repo path (targeted via CIM) before overwriting.
+12. **`85-ps-modules.ps1`** (`modules`) — installs PowerShell modules consumed by the deployed profile: `z` (directory jumper), `Terminal-Icons` (lazy-loaded on first `ls`). Trusts PSGallery first to avoid Install-Module's interactive prompt, then skips modules already in `Get-Module -ListAvailable`. CurrentUser scope, no elevation needed for the install itself.
+
+**Defender exclusions** — formerly centralized in `50-defender.ps1`, now per-app hooks under `post-install/` calling `Add-DefenderExclusion`. Concrete exclusions: VS Code (`~/.vscode`), .NET 10 SDK (`~/.nuget`), REAPER (`~/Documents/Reaper Media` both casings). The Audient driver dir (`C:\ProgramData\Audient`) is a manual step in `docs/install-checklist.md` § 15 because Audient isn't winget-installable. The `~/source` and `~/projects` exclusions from the old step were dropped — not in use on the maintainer's machines.
 
 The manual-step "what to do after bootstrap finishes" list lives in [`docs/install-checklist.md`](docs/install-checklist.md) § 15 — that's the source of truth for all manual installs (Office, eUprava, vendor apps, Native Instruments, etc.). Earlier versions of the repo generated `TODO-post-install.txt` on the Desktop from a bootstrap step; that step was removed because keeping the manual-step content in two places (Desktop file + docs) drifted, and the doc wins as the canonical home.
 
@@ -203,7 +204,7 @@ The manual-step "what to do after bootstrap finishes" list lives in [`docs/insta
 
 | Switch | Expands to |
 |---|---|
-| `-PostUpdate` | `-Steps debloat,privacy,features,power,defender` |
+| `-PostUpdate` | `-Steps debloat,privacy,features,power` |
 | `-AppsOnly` | `-Steps apps,extras` |
 | `-Verify` | `-DryRun` |
 

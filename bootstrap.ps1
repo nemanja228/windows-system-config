@@ -11,14 +11,13 @@
     for re-applying just one slice (e.g. after editing tweaks.reg).
 
     Tag filter:
-        core      — settings most users want every run (debloat, power, defender)
+        core      — settings most users want every run (debloat, power)
         debloat   — Win11Debloat, OOSU10, tweaks.reg
         privacy   — OOSU10, tweaks.reg (subset of debloat)
         config    — tweaks.reg, .wslconfig (writes config files)
         apps      — winget source update + import + post-apps cleanup
-        extras    — post-install/<package-id>.ps1 hooks
+        extras    — post-install/<package-id>.ps1 hooks (incl. per-app Defender exclusions)
         power     — power plan, USB suspend, LSPM, timeouts
-        defender  — Defender exclusions
         features  — Hyper-V, WSL, VMP, Sandbox feature enables
         wsl       — WSL update, install, .wslconfig
         restore   — system restore point
@@ -36,7 +35,7 @@
 
 .PARAMETER PostUpdate
     Preset for "after a Windows feature update flipped my settings back."
-    Equivalent to: -Steps debloat,privacy,features,power,defender
+    Equivalent to: -Steps debloat,privacy,features,power
 
 .PARAMETER AppsOnly
     Preset for "just install / update my apps." Equivalent to: -Steps apps,extras
@@ -107,7 +106,7 @@ Import-Module $modulePath -Force
 # =============================================================================
 
 if (-not $Steps -or $Steps.Count -eq 0) {
-    if     ($PostUpdate) { $Steps = @('debloat','privacy','features','power','defender') }
+    if     ($PostUpdate) { $Steps = @('debloat','privacy','features','power') }
     elseif ($AppsOnly)   { $Steps = @('apps','extras') }
 }
 

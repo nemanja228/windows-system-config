@@ -30,16 +30,17 @@ cd $env:USERPROFILE\code\win-setup   # or wherever you cloned
 .\bootstrap.ps1 -PostUpdate
 ```
 
-`-PostUpdate` expands to `-Steps debloat,privacy,features,power,defender`. Runs:
+`-PostUpdate` expands to `-Steps debloat,privacy,features,power`. Runs:
 
 - Win11Debloat (apps + UI tweaks)
 - OOSU10 with the saved cfg
 - `tweaks.reg` per-value import
 - Windows features (verifies Hyper-V / WSL / VMP / Sandbox are still enabled)
 - Power plan + USB suspend + LSPM + timeouts
-- Defender exclusions
 
 Skipped: restore point, apps (no need to reinstall), WSL config (probably untouched by the update), profile deployment (your local edits to the deployed files survive — re-run `.\scripts\Install-Profiles.ps1` only if you've updated something in `profiles/` in the repo).
+
+Defender exclusions are not in `-PostUpdate` — they live in per-app post-install hooks now (VS Code, .NET SDK, REAPER) and are idempotent. Feature updates don't typically wipe them, but if you ever need to re-add them: `.\bootstrap.ps1 -Steps apps,extras -ForceAppExtras` re-runs every hook.
 
 Takes about 60 seconds on a quiet machine. **Idempotent** — every step checks current state before changing anything.
 
@@ -53,8 +54,11 @@ Sometimes you don't want a full re-apply. Cherry-pick by tag:
 # Just privacy + tweaks.reg
 .\bootstrap.ps1 -Steps privacy
 
-# Just power and Defender
-.\bootstrap.ps1 -Steps power,defender
+# Just power
+.\bootstrap.ps1 -Steps power
+
+# Re-run all per-app post-install hooks (incl. their Defender exclusions)
+.\bootstrap.ps1 -Steps apps,extras -ForceAppExtras
 
 # Just verify what would change without changing anything
 .\bootstrap.ps1 -PostUpdate -Verify

@@ -9,7 +9,7 @@ This page is the overview. Each topic has its own doc; follow the links.
 ## What this repo gets you
 
 - A rendered `autounattend.xml` that handles Windows Setup unattended: skips OOBE, creates a local account, denies telemetry, removes Appx packages before first boot.
-- A `bootstrap.ps1` orchestrator: applies registry tweaks, OOSU10 privacy config, debloat, power plan, Defender exclusions, Hyper-V/WSL/Sandbox features, WSL Ubuntu install, and deploys your profile files (terminal, PS, OMP, fonts, AHK, .gitconfig).
+- A `bootstrap.ps1` orchestrator: applies registry tweaks, OOSU10 privacy config, debloat, power plan, Hyper-V/WSL/Sandbox features, WSL Ubuntu install, and deploys your profile files (terminal, PS, OMP, fonts, AHK, .gitconfig). Per-app Defender exclusions ship inside `post-install/<package-id>.ps1` hooks.
 - A tiered apps list (`apps.common.json` + `apps.dev.json` + `apps.work.json` + `apps.personal.json`) imported via winget.
 - Per-app post-install hooks (`post-install/<package-id>.ps1`) — install extensions, sideload plugins, etc.
 - A homed `.gitconfig`, SSH multi-account setup helper, Windows Terminal / PowerShell `$PROFILE` / Oh-My-Posh placeholders.
@@ -69,9 +69,9 @@ This page is the overview. Each topic has its own doc; follow the links.
 │     - tweaks.reg (per-value import)                               │
 │     - Time zone + taskbar autohide                                │
 │     - Power plan + USB suspend + LSPM + timeouts                  │
-│     - Defender exclusions for dev/audio folders                   │
 │     - winget import of tiered apps lists                          │
 │     - Post-install/<package-id>.ps1 hooks for installed apps      │
+│       (incl. per-app Defender exclusions)                          │
 │     - tweaks.reg re-import (cleans up installer-created junk)     │
 │     - Windows features + WSL Ubuntu + .wslconfig                  │
 │     - profiles/ deployed via 80-profiles → Install-Profiles.ps1   │

@@ -76,7 +76,7 @@ Generic setup in [`../audio.md`](../audio.md). Machine-specific notes:
 - **Plug the EVO 4 directly into a laptop USB-A or USB-C port** — never through the HP G4 dock. Docks add a USB hub that introduces jitter and DPC spikes; LatencyMon will surface this immediately.
 - **Disable internal Realtek speaker output in Device Manager** when permanently at the desk (right-click → Disable device). Re-enable when traveling. Same for the HDMI audio outs. Single audio path means buffer/sample rate stay predictable.
 - **Disable WiFi power saving** during recording (Device Manager → wireless adapter → Power Management). Common DPC offender on this Realtek/MediaTek chipset.
-- The AMD chipset's USB controller is fine for audio; latency stays under 5 ms ASIO buffer at 256 samples / 48 kHz in REAPER with no Defender real-time scans on the project dir (handled by the Defender exclusions step in `bootstrap.ps1`).
+- The AMD chipset's USB controller is fine for audio; latency stays under 5 ms ASIO buffer at 256 samples / 48 kHz in REAPER with no Defender real-time scans on the project dir (handled by the `post-install/Cockos.REAPER.ps1` hook, which excludes `~/Documents/Reaper Media` from real-time scans).
 
 ## Things this machine doesn't do well
 

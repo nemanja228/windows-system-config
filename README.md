@@ -66,11 +66,10 @@ Pre-flight (admin, network, OS build, exec policy) has no tags and **always runs
 | `debloat` | Win11Debloat + OOSU10 + tweaks.reg |
 | `privacy` | OOSU10 + tweaks.reg (subset of debloat) |
 | `config` | tweaks.reg + `.wslconfig` |
-| `core` | Most "every-run" settings (debloat, region, power, defender) |
+| `core` | Most "every-run" settings (debloat, region, power) |
 | `power` | Power plan + USB suspend + LSPM + timeouts |
-| `defender` | Defender exclusions |
 | `apps` | winget source + tiered import + post-apps tweaks re-import |
-| `extras` | `post-install/<package-id>.ps1` hooks for installed apps |
+| `extras` | `post-install/<package-id>.ps1` hooks for installed apps (incl. per-app Defender exclusions) |
 | `search` | Disable Windows Search service (Everything replaces it — see [`docs/debloat.md`](docs/debloat.md)) |
 | `features` | Hyper-V / WSL / VMP / Sandbox |
 | `wsl` | WSL kernel + Ubuntu + `.wslconfig` |
@@ -83,7 +82,7 @@ Preset switches:
 
 | Switch | Expands to |
 |---|---|
-| `-PostUpdate` | `-Steps debloat,privacy,features,power,defender` |
+| `-PostUpdate` | `-Steps debloat,privacy,features,power` |
 | `-AppsOnly` | `-Steps apps,extras` |
 | `-Verify` | `-DryRun` |
 
@@ -112,7 +111,7 @@ Safe to run repeatedly:
 
 - **WSL data is never touched.** Ubuntu install only runs if Ubuntu isn't already registered. Existing home dir, projects, apt packages — all left alone.
 - **`.wslconfig` is conservative by default.** If you've customized it by hand, bootstrap leaves it. Pass `-ForceWslConfig` to refresh from the repo template.
-- **Registry, services, power, Defender, features** are all no-ops when desired state already holds.
+- **Registry, services, power, features** are all no-ops when desired state already holds. Per-app Defender exclusions (added by post-install hooks for VS Code, .NET SDK, REAPER) are also idempotent — `Add-MpPreference -ExclusionPath` no-ops on an already-excluded path.
 - **Win11Debloat, OOSU10, `tweaks.reg`** are pure setters — applying them again is a no-op when current state already matches.
 - **winget import** treats the apps lists as desired state: apps removed from the system but still listed in `apps.<tier>.json` WILL be reinstalled. Keep the lists honest, or filter via `-Tiers` / `-AppsOnly`.
 - **Post-install hooks** are skipped when their content hasn't changed since the last successful run (SHA-256 sentinel at `%LocalAppData%\win-setup\post-install\<id>.hash`).

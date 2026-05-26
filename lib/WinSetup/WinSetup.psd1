@@ -17,7 +17,8 @@
         'Show-Summary',
         'Get-StepSummary',
         'Get-ResourcePath',
-        'Import-RegFilePerValue'
+        'Import-RegFilePerValue',
+        'Add-DefenderExclusion'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()

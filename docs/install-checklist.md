@@ -146,10 +146,9 @@ What it covers (each step idempotent, tag-filtered, logged):
 - Time zone, taskbar autohide
 - winget import (tiered — see below)
 - Power plan + USB selective suspend + LSPM + timeouts
-- Defender exclusions for dev/audio dirs
 - Hyper-V / WSL / VMP / Sandbox features
 - WSL Ubuntu install + `.wslconfig`
-- Post-install hooks for each installed app (e.g. Notepad++ plugins, VS Code extensions)
+- Post-install hooks for each installed app (Notepad++ plugins, VS Code extensions, per-app Defender exclusions for `.vscode` / `.nuget` / REAPER Media)
 - Windows Search service disabled (Everything covers file-name search; Outlook content search disabled — see [`debloat.md`](debloat.md))
 - Profile deployment: PS profile / Windows Terminal settings / OMP theme / Caskaydia Cove fonts / AHK startup shortcut / `.gitconfig`
 - Anything still requiring manual attention lives in § 15 of this doc
@@ -217,7 +216,12 @@ Some apps either aren't on winget, are version-pinned to a release winget doesn'
 
 ### Vendor / hardware drivers not in MyASUS Live Update
 
-- [ ] **Audient EVO 4 driver** — download from <https://audient.com/products/audio-interfaces/evo-4/downloads/>. Ships ASIO + the EVO standalone mixer.
+- [ ] **Audient EVO 4 driver** — download from <https://audient.com/products/audio-interfaces/evo-4/downloads/>. Ships ASIO + the EVO standalone mixer. After install, exclude the driver state dir from Defender real-time scans (DPC latency on audio interrupt paths):
+  ```powershell
+  Add-MpPreference -ExclusionPath 'C:\ProgramData\Audient'
+  Get-MpPreference | Select-Object -ExpandProperty ExclusionPath   # verify
+  ```
+  (REAPER's media dir and the .NET / VS Code dirs are added automatically by the matching post-install hooks; this one is manual because Audient isn't winget-installable.)
 
 ### Serbian eUprava (electronic government) tools
 
@@ -244,6 +248,6 @@ Feature updates (24H2 → 25H2 etc.) silently re-enable telemetry, Copilot, Widg
 .\bootstrap.ps1 -PostUpdate
 ```
 
-Equivalent to `-Steps debloat,privacy,features,power,defender`. Skips the slow apps step. About 60 seconds.
+Equivalent to `-Steps debloat,privacy,features,power`. Skips the slow apps step. About 60 seconds.
 
 See [`post-update.md`](post-update.md) for which settings drift most often.

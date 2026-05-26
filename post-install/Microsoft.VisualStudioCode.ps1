@@ -56,3 +56,7 @@ foreach ($ext in $extensions) {
 }
 
 Write-Host "`n  Summary: $installed installed, $skipped already present, $failed failed" -ForegroundColor Green
+
+# Defender exclusion for the VS Code user data dir (extension installs and
+# JS/TS language services hammer this; Defender real-time scans add latency).
+Add-DefenderExclusion -Path "$env:USERPROFILE\.vscode" -Source 'vscode'

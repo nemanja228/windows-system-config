@@ -45,7 +45,7 @@ If your machine has a Thunderbolt port and an internal hub of its own, the USB-C
 [Resplendence LatencyMon](https://www.resplendence.com/latencymon) is in `apps.personal.json` and is the canonical tool for catching DPC-latency outliers. Watch for:
 
 - **High ISR / DPC times** in the per-driver table — `wifi.sys`, `bthusb.sys`, ACPI drivers, GPU drivers are common offenders.
-- **Hard pagefaults** — usually background indexing or AV scanning. The Defender exclusions in step `50-defender` cover the usual project paths.
+- **Hard pagefaults** — usually background indexing or AV scanning. The per-app Defender exclusions in `post-install/Cockos.REAPER.ps1` cover the REAPER project paths (`~/Documents/Reaper Media`); the Audient driver dir is excluded manually per `docs/install-checklist.md` § 15.
 - **Maximum reported interrupt-to-process latency** above ~1 ms — fine for most desktop work, problematic for live monitoring at low ASIO buffers.
 
 If you see WiFi or Bluetooth driving spikes, **disable WiFi power saving** during recording (Device Manager → wireless adapter → Power Management → uncheck "Allow the computer to turn off this device") and/or disable Bluetooth when not needed.
