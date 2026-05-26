@@ -52,6 +52,31 @@ Install MyASUS from the Microsoft Store, sign in, and run **Live Update** before
 
 Many of these have no PowerShell API; that's why they live in this doc and not in `bootstrap.ps1`.
 
+## MyASUS backup / restore
+
+ASUS's official **ASUS Switch** demands Dropbox / external disk / WiFi as destinations and produces opaque blobs. For a text-diffable snapshot, use the standalone snippets:
+
+```powershell
+# Capture (no elevation needed)
+.\snippets\Export-MyASUSConfig.ps1
+# default: $env:USERPROFILE\win-setup-snapshots\myasus-<yyyyMMdd-HHmmss>\
+
+# Or to a curated location
+.\snippets\Export-MyASUSConfig.ps1 -OutputDir 'D:\data\3_library\machine-snapshots\zenbook-myasus'
+
+# Restore on a fresh install (elevated)
+.\snippets\Import-MyASUSConfig.ps1 -InputDir 'D:\data\3_library\machine-snapshots\zenbook-myasus'
+```
+
+What gets captured: the registry-resident half of MyASUS state under `HKLM\SOFTWARE\ASUS\ASUS System Control Interface\AsusOptimization\` (Battery Health Charging threshold, Fan Mode, Splendid color, AI Noise Cancellation, OLED Care, Function Key Lock, touchpad/trackpoint, keyboard backlight). Outputs two `.reg` files (for restore) plus `myasus-snapshot.md` (a curated markdown table — diff-friendly, no SN, no UUID).
+
+What's NOT captured by the snippets — these stay manual settings from the BIOS table / MyASUS table above:
+
+- **USB Power Delivery in S5** — pure BIOS setting, not visible to Windows. Set once in BIOS.
+- **EC-firmware-stored bits** that the ASUS service syncs from the registry on demand. The registry value is captured; full firmware sync happens after restore via the service restart (the importer handles this) and a reboot for good measure.
+
+The MyASUS configuration table above remains the authoritative human-readable record. The snippets are a complementary mechanical snapshot for fast restore + diff over time.
+
 ## Drivers — install order
 
 (Generic order in [`../drivers.md`](../drivers.md); machine specifics below.)

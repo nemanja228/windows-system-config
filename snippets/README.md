@@ -47,6 +47,32 @@ Wraps `git maintenance start`. Each enrolled repo gets a `maintenance.repo = <pa
 
 These entries survive `Install-Profiles.ps1`'s gitconfig redeploys: the deploy preserves any key that isn't in the new template, and `maintenance.repo` is never in the repo's template.
 
+### `Export-MyASUSConfig.ps1` — snapshot MyASUS settings to .reg + markdown
+
+```powershell
+.\Export-MyASUSConfig.ps1                                                  # default: ~/win-setup-snapshots/myasus-<stamp>/
+.\Export-MyASUSConfig.ps1 -OutputDir 'D:\data\machine-snapshots\myasus'   # curated location
+.\Export-MyASUSConfig.ps1 -WhatIf                                          # preview
+```
+
+**ASUS-only snippet** (the first vendor-tied one here). Captures the registry-resident half of MyASUS state under `HKLM\SOFTWARE\ASUS\ASUS System Control Interface\AsusOptimization\` — Battery Health Charging threshold, Fan Mode, Splendid color mode, AI Noise Cancellation, OLED Care, Function Key Lock, touchpad/trackpoint, keyboard backlight, and ~30 more. Outputs:
+
+- `HKLM-ASUS-Keyboard-Hotkeys.reg` + `HKLM-ASUS-ScreenXpert.reg` — raw `reg export` of the value-rich subkeys, used for restoration.
+- `myasus-snapshot.md` — curated markdown table with current live values per group. Diff-friendly, commit-safe (machine SN + UUID intentionally excluded).
+- `README.md` — per-snapshot index with capture date, hostname, restore instructions.
+
+Won't capture (firmware / BIOS-only): USB Power Delivery in S5, EC-stored battery wear stats. See companion `Import-MyASUSConfig.ps1`.
+
+### `Import-MyASUSConfig.ps1` — restore a MyASUS snapshot
+
+```powershell
+.\Import-MyASUSConfig.ps1 -InputDir 'D:\data\machine-snapshots\myasus'     # elevated session
+.\Import-MyASUSConfig.ps1 -InputDir "$env:TEMP\myasus-test" -WhatIf        # preview (no elevation needed)
+.\Import-MyASUSConfig.ps1 -InputDir '...' -NoRestart                       # skip service restart
+```
+
+**ASUS-only.** Imports every `HKLM-ASUS-*.reg` in `-InputDir`, then restarts `ASUSOptimization`, `AsusAppService`, `AsusPTPService` so they re-read the registry and push values to firmware via ACPI / EC calls. Requires elevation for real writes; `-WhatIf` works without. A reboot is recommended for firmware-side bits (battery threshold sync, EC fan profile).
+
 ### `Get-PathEntries.ps1` — display PATH, one entry per line
 
 ```powershell
