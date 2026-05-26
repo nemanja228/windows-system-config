@@ -75,6 +75,7 @@ Pre-flight (admin, network, OS build, exec policy) has no tags and **always runs
 | `features` | Hyper-V / WSL / VMP / Sandbox |
 | `wsl` | WSL kernel + Ubuntu + `.wslconfig` |
 | `profiles` | Deploy `profiles/` files (PS profile, WT, OMP, fonts, AHK, `.gitconfig`) via `Install-Profiles.ps1` |
+| `modules` | Install PowerShell modules consumed by the deployed PS profile (`z`, `Terminal-Icons`) |
 
 Step runs if **any** of its tags is in your `-Steps` list.
 

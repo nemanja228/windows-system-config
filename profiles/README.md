@@ -34,7 +34,7 @@ What it sets up:
 - Argument completers: `winget`, `dotnet`, and a custom `git` completer (subcommand + branch completion) that replaces `posh-git` — ~700ms saved at startup
 - PSReadLine bindings: UpArrow/DownArrow history search, smart insert/delete for quotes/parens/braces, F7 history GridView, Ctrl+V paste-as-here-string, RightArrow accepts next predicted word
 - PSReadLine prediction (`ListView` over history)
-- `Import-Module z` (zoxide-style directory jumper) — install once via `Install-Module z -Scope CurrentUser`
+- `Import-Module z` (zoxide-style directory jumper) — the `z` and `Terminal-Icons` modules are installed automatically by bootstrap step `85-ps-modules` (tag `modules`); install standalone with `Install-Module z,Terminal-Icons -Scope CurrentUser`
 - `'git cmt' → 'git commit'` autocorrect
 - `$wshell.SendKeys("^+]")` at the end — triggers the `WtTransparent.ahk` hotkey so every new PS window opens transparent. Drop this line if it conflicts with another app's binding.
 
