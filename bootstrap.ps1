@@ -31,8 +31,8 @@
     Example: -Steps debloat,apps  runs Win11Debloat, OOSU10, tweaks.reg, winget.
 
 .PARAMETER Tiers
-    Which apps.<tier>.json files to import. Default: all three.
-    Example: -Tiers common,professional
+    Which apps.<tier>.json files to import. Default: all four.
+    Example: -Tiers common,dev
 
 .PARAMETER PostUpdate
     Preset for "after a Windows feature update flipped my settings back."
@@ -72,8 +72,8 @@
 param(
     [string[]]$Steps,
 
-    [ValidateSet('common','professional','personal')]
-    [string[]]$Tiers = @('common','professional','personal'),
+    [ValidateSet('common','dev','work','personal')]
+    [string[]]$Tiers = @('common','dev','work','personal'),
 
     [switch]$PostUpdate,
     [switch]$AppsOnly,

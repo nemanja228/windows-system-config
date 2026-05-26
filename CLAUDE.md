@@ -57,7 +57,7 @@ win-setup/
 │   ├── debloat/                   # Win11Debloat CustomAppsList.txt
 │   ├── shutup/                    # O&O ShutUp10++ saved cfg
 │   ├── registry/                  # tweaks.reg
-│   └── winget/                    # apps.{common,professional,personal}.json
+│   └── winget/                    # apps.{common,dev,work,personal}.json
 │
 ├── post-install/                  # Per-app hooks (auto-discovered by 61-app-extras)
 │   ├── README.md                  # Naming convention + idempotency contract
@@ -109,7 +109,7 @@ All PowerShell commands run from the repo root. `bootstrap.ps1` has `#Requires -
 .\bootstrap.ps1 -Steps extras            # just the post-install/ hooks
 
 # App tier filter (independent of -Steps)
-.\bootstrap.ps1 -Tiers common,professional       # default: all three
+.\bootstrap.ps1 -Tiers common,dev                # default: all four (common,dev,work,personal)
 .\bootstrap.ps1 -Tiers common -AppsOnly
 
 # Force flags
@@ -191,7 +191,7 @@ Module helpers used by steps:
 6. **`45-devdrive.ps1`** (`devdrive`) — auto-detects a Dev Drive (ReFS + Fixed, confirmed via `fsutil devdrv query`), then redirects package-manager caches (NuGet, npm, yarn, Cargo, pip, Gradle, Vcpkg, Go) to `<DevDrive>:\dev\packages\<tool>\` via per-tool user-scope env vars. Idempotent (skips already-correct mappings, WARNs+overrides ones pointing elsewhere). No-op when no Dev Drive exists. Does NOT migrate existing caches — they're abandoned, tools rebuild on demand. Drive letter is NEVER assumed; detected from volumes.
 7. **`50-defender.ps1`** (`core, defender`) — exclusions for `~/source`, `~/projects`, `~/.vscode`, `~/.nuget`, REAPER Media dirs, `C:\ProgramData\Audient`.
 8. **`55-search.ps1`** (`search`) — disables Windows Search service (sets WSearch StartupType=Disabled + Stop-Service). Idempotent (no-op when already disabled+stopped). Outlook content search breaks; Start file search breaks; Everything replaces them. See `docs/debloat.md` for the full tradeoff write-up.
-9. **`60-apps.ps1`** (`apps`) — `winget source update`, then `winget import` for each `apps.<tier>.json` matched by `-Tiers` (default: all three: common, professional, personal). After successful import, **re-applies `tweaks.reg`** via `Import-RegFilePerValue` — cheap (~1s, mostly no-ops) and cleans up installer-created context-menu entries (Git Bash, "Open with Notepad", etc.) that step 20 couldn't catch because the apps weren't installed yet.
+9. **`60-apps.ps1`** (`apps`) — `winget source update`, then `winget import` for each `apps.<tier>.json` matched by `-Tiers` (default: all four: common, dev, work, personal). After successful import, **re-applies `tweaks.reg`** via `Import-RegFilePerValue` — cheap (~1s, mostly no-ops) and cleans up installer-created context-menu entries (Git Bash, "Open with Notepad", etc.) that step 20 couldn't catch because the apps weren't installed yet.
 10. **`61-app-extras.ps1`** (`apps, extras`) — scans `post-install/*.ps1`. For each, strips `.ps1` to get the package id, checks `winget list --id <id> --exact`, and if installed, compares SHA-256 of the script content against a sentinel at `%LocalAppData%\win-setup\post-install\<id>.hash`. If hash differs (or sentinel missing) runs the script with `Invoke-Step`; else skips with DEBUG. `-ForceAppExtras` clears sentinels first.
 11. **`70-features-wsl.ps1`** (`features` / `wsl`) — Hyper-V, VMP, WSL, Sandbox features (`-NoRestart`), `wsl --update`, install Ubuntu if absent, write `~/.wslconfig` (16GB / 8 procs / sparseVhd / autoMemoryReclaim=gradual). Preserves existing `.wslconfig` unless `-ForceWslConfig`.
 12. **`80-profiles.ps1`** (`profiles` + per-category sub-tags: `git`, `pwsh`, `omp`, `wt`, `fonts`, `ahk`) — thin wrapper that invokes `scripts/Install-Profiles.ps1 -NoInit`. The inner script's six category-specific Invoke-Step calls land in the bootstrap summary because the module's `$script:Summary` is shared. `Install-Profiles.ps1` is also runnable standalone for ad-hoc redeployment after editing a `profiles/*` file. **pwsh deploy targets BOTH `Documents\PowerShell\` (pwsh 7) AND `Documents\WindowsPowerShell\` (PS 5.1)** so the profile loads in either host — the profile itself gates PSReadLine 2.2+ features behind `$PSVersionTable` checks. **`ahk` sub-step stages `profiles/autohotkey/WtTransparent.ahk` to `%LocalAppData%\win-setup\autohotkey\` (SHA256 hash-compare to skip when unchanged) and points the Startup shortcut at the staged copy** — repo stays freely deletable because no process holds a handle on a repo file. When the source has changed, the step stops any AHK process whose CommandLine references the staged or old repo path (targeted via CIM) before overwriting.
@@ -209,13 +209,16 @@ The manual-step "what to do after bootstrap finishes" list lives in [`docs/insta
 
 ### App tiers
 
-Three winget package lists under `resources/winget/`:
+Four winget package lists under `resources/winget/`:
 
-- **`apps.common.json`** (22 packages) — everyday tools any of the user's machines should have: PowerShell, Git, gh, OhMyPosh, VS Code, PowerToys, .NET 10 SDK, Docker Desktop, Firefox, Chrome, Notepad++, Obsidian, Everything, Insync, 7zip, Bitwarden CLI, PDF24, AutoHotkey v2, VLC, WizTree, Logitech Options+, UniGetUI.
-- **`apps.professional.json`** (7 packages) — work tooling: JetBrains Toolbox, SSMS, .NET 8 SDK (LTS), fnm, pyenv-win, WinMerge, WinSCP.
-- **`apps.personal.json`** (4 packages) — taste-driven: LatencyMon, REAPER, TuxGuitar, GeForce Now.
+- **`apps.common.json`** (18 packages) — baseline anyone reaching this repo already wants: PowerShell 7, Git, OhMyPosh, VS Code, PowerToys, Firefox, Chrome, Notepad++, Obsidian, Everything, Insync, 7zip, PDF24, AutoHotkey v2, VLC, WizTree, Logitech Options+, UniGetUI.
+- **`apps.dev.json`** (4 packages) — additional dev runtimes/tooling beyond baseline: gh (GitHub CLI), .NET 10 SDK, Docker Desktop, Bitwarden CLI.
+- **`apps.work.json`** (7 packages) — heavier / multi-stack pro tooling: JetBrains Toolbox, SSMS, .NET 8 SDK (LTS), fnm, pyenv-win, WinMerge, WinSCP.
+- **`apps.personal.json`** (4 packages) — taste-driven, maintainer-specific: LatencyMon, REAPER, TuxGuitar, GeForce Now.
 
-Selected via `-Tiers`. Default: all three. Tier-per-file (not one JSON with tags) because `winget import` consumes whole files.
+Selected via `-Tiers`. Default: all four. Tier-per-file (not one JSON with tags) because `winget import` consumes whole files.
+
+The audience-clarity goal: anyone scanning a single tier file should immediately know whether it's for them. `common` is wide-net; `dev` gates on "I write code"; `work` gates on "I do paid SQL/JetBrains/multi-stack dev"; `personal` is maintainer-only.
 
 ### Per-app post-install hooks
 

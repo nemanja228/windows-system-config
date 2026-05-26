@@ -10,7 +10,7 @@ This page is the overview. Each topic has its own doc; follow the links.
 
 - A rendered `autounattend.xml` that handles Windows Setup unattended: skips OOBE, creates a local account, denies telemetry, removes Appx packages before first boot.
 - A `bootstrap.ps1` orchestrator: applies registry tweaks, OOSU10 privacy config, debloat, power plan, Defender exclusions, Hyper-V/WSL/Sandbox features, WSL Ubuntu install, and deploys your profile files (terminal, PS, OMP, fonts, AHK, .gitconfig).
-- A tiered apps list (`apps.common.json` + `apps.professional.json` + `apps.personal.json`) imported via winget.
+- A tiered apps list (`apps.common.json` + `apps.dev.json` + `apps.work.json` + `apps.personal.json`) imported via winget.
 - Per-app post-install hooks (`post-install/<package-id>.ps1`) — install extensions, sideload plugins, etc.
 - A homed `.gitconfig`, SSH multi-account setup helper, Windows Terminal / PowerShell `$PROFILE` / Oh-My-Posh placeholders.
 - Re-runnable indefinitely. Every step is idempotent. After a Windows feature update: `.\bootstrap.ps1 -PostUpdate`.

@@ -154,12 +154,13 @@ What it covers (each step idempotent, tag-filtered, logged):
 - Profile deployment: PS profile / Windows Terminal settings / OMP theme / Caskaydia Cove fonts / AHK startup shortcut / `.gitconfig`
 - Anything still requiring manual attention lives in § 15 of this doc
 
-**App tiers** — `bootstrap.ps1 -Tiers common,professional,personal` (default: all three). See [`../resources/winget/`](../resources/winget/) for the tier-file contents:
+**App tiers** — `bootstrap.ps1 -Tiers common,dev,work,personal` (default: all four). See [`../resources/winget/`](../resources/winget/) for the tier-file contents:
 
 | Tier | What's in it |
 |---|---|
-| `common` | PowerShell 7, Git, gh, OhMyPosh, VS Code, PowerToys, .NET 10 SDK, Docker Desktop, Firefox, Chrome, Notepad++, Obsidian, Everything, Insync, 7zip, Bitwarden CLI, PDF24, AutoHotkey, VLC, WizTree, Logitech Options+, UniGetUI |
-| `professional` | JetBrains Toolbox, SSMS, .NET 8 SDK (LTS), fnm, pyenv-win, WinMerge, WinSCP |
+| `common` | PowerShell 7, Git, OhMyPosh, VS Code, PowerToys, Firefox, Chrome, Notepad++, Obsidian, Everything, Insync, 7zip, PDF24, AutoHotkey, VLC, WizTree, Logitech Options+, UniGetUI |
+| `dev` | gh (GitHub CLI), .NET 10 SDK, Docker Desktop, Bitwarden CLI |
+| `work` | JetBrains Toolbox, SSMS, .NET 8 SDK (LTS), fnm, pyenv-win, WinMerge, WinSCP |
 | `personal` | LatencyMon, REAPER, TuxGuitar, GeForce Now |
 
 ## 11. Windows Terminal, PowerShell, Oh-My-Posh

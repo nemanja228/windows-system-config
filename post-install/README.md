@@ -22,7 +22,7 @@ Dots in package ids and `++` in `Notepad++` are valid NTFS filename characters â
 
 ## When hooks run
 
-- **During `bootstrap.ps1`**: step `61-app-extras` runs immediately after step `60-apps` (winget import + post-apps tweaks re-import). Default tier set installs everything in `apps.{common,professional,personal}.json`, so any matching hook fires automatically.
+- **During `bootstrap.ps1`**: step `61-app-extras` runs immediately after step `60-apps` (winget import + post-apps tweaks re-import). Default tier set installs everything in `apps.{common,dev,work,personal}.json`, so any matching hook fires automatically.
 - **Ad hoc**: `.\bootstrap.ps1 -Steps extras` runs only this step. Useful after installing an app manually (e.g. `winget install Notepad++.Notepad++` then `.\bootstrap.ps1 -Steps extras`).
 - **Forced re-run**: `.\bootstrap.ps1 -ForceAppExtras` clears all sentinels first, so every hook fires.
 

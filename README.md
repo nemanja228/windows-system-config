@@ -44,7 +44,7 @@ win-setup/
 │   ├── debloat/                   #   - Win11Debloat CustomAppsList.txt
 │   ├── shutup/                    #   - O&O ShutUp10++ saved cfg
 │   ├── registry/                  #   - tweaks.reg
-│   └── winget/                    #   - apps.{common,professional,personal}.json
+│   └── winget/                    #   - apps.{common,dev,work,personal}.json
 ├── post-install/                  # Per-app hooks; named after winget package id
 ├── scripts/                       # Standalone interactive scripts (git/github, etc.)
 ├── profiles/                      # Windows Terminal / PS $PROFILE / Oh-My-Posh / .gitconfig
@@ -91,9 +91,11 @@ App tier filter (independent of `-Steps`):
 
 | Switch | Effect |
 |---|---|
-| `-Tiers common,professional,personal` | Default — import all three tier files |
-| `-Tiers common` | Only `apps.common.json` |
-| etc. | Any combination of the three |
+| `-Tiers common,dev,work,personal` | Default — import all four tier files |
+| `-Tiers common` | Only `apps.common.json` (baseline, ~18 packages — browsers, OhMyPosh, Git, VS Code, etc.) |
+| `-Tiers common,dev` | Baseline + dev runtimes (.NET SDK, Docker, gh, Bitwarden CLI) |
+| `-Tiers common,dev,work` | + work tooling (JetBrains, SSMS, .NET LTS, fnm, pyenv, WinMerge, WinSCP) |
+| etc. | Any combination of the four |
 
 Force switches:
 

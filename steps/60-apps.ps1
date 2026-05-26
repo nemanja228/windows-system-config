@@ -1,8 +1,8 @@
 ﻿# =============================================================================
 # 60 — Apps: winget source update + tiered import + post-apps tweaks re-import
 #
-# $Tiers is bootstrap-scope (e.g. 'common','professional','personal'). Bootstrap
-# defaults it to all three; user can narrow via -Tiers on the command line.
+# $Tiers is bootstrap-scope (e.g. 'common','dev','work','personal'). Bootstrap
+# defaults it to all four; user can narrow via -Tiers on the command line.
 #
 # After a successful import, re-applies tweaks.reg via Import-RegFilePerValue.
 # This is what cleans up installer-created context-menu junk (Git Bash, etc.)
@@ -27,7 +27,7 @@ Invoke-Step -Name "winget: update sources" -Tags @('apps') -ContinueOnError -Ski
 }
 
 Invoke-Step -Name "winget: import tiered apps lists" -Tags @('apps') -ContinueOnError -SkipOnDryRun -Action {
-    $effectiveTiers = if ($Tiers) { $Tiers } else { @('common','professional','personal') }
+    $effectiveTiers = if ($Tiers) { $Tiers } else { @('common','dev','work','personal') }
     Write-Log -Level INFO -Message "  Selected tiers: $($effectiveTiers -join ', ')"
     foreach ($tier in $effectiveTiers) {
         $apps = Get-ResourcePath -Name ("winget/apps.{0}.json" -f $tier)
