@@ -19,7 +19,7 @@ Run on first install, or any time after — fully idempotent. No mandatory param
 # Install git if missing; deploy repo gitconfig (preserves existing identity);
 # prompt for name/email only if neither already set globally.
 
-.\scripts\Setup-Git.ps1 -GitUserName "Nemanja Raković" -GitUserEmail "me@example.com"
+.\scripts\Setup-Git.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com"
 # Same but identity values come from params instead of prompts.
 
 .\scripts\Setup-Git.ps1 -Force

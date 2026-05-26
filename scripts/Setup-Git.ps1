@@ -39,7 +39,7 @@
     # alone if already set, prompt if not.
 
 .EXAMPLE
-    .\Setup-Git.ps1 -GitUserName "Nemanja Raković" -GitUserEmail "me@example.com"
+    .\Setup-Git.ps1 -GitUserName "Your Name" -GitUserEmail "you@example.com"
     # Set identity explicitly (no-op if same as current).
 
 .EXAMPLE

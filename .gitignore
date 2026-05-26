@@ -1,1 +1,9 @@
 autounattend.xml
+
+# Profile redeploy backups (Install-Profiles.ps1 creates these alongside any
+# overwritten target as <target>.bak-<stamp>).
+*.bak-*
+
+# Defensive: bootstrap logs land in %USERPROFILE%\win-setup-logs\, but stray
+# *.log files in the repo root or under scripts/ would still be junk.
+*.log

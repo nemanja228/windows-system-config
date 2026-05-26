@@ -5,7 +5,7 @@
 .EXAMPLE
     .\render-autounattend.ps1
 .EXAMPLE
-    .\render-autounattend.ps1 -ComputerName ZENBOOK -Username nemanja -CSizeGB 400
+    .\render-autounattend.ps1 -ComputerName MYPC -Username youruser -CSizeGB 400
 #>
 
 [CmdletBinding()]
