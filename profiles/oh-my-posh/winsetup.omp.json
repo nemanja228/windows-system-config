@@ -31,7 +31,7 @@
             "foreground_templates": [
               "{{ if .Root }}#FF1700{{ end }}"
             ],
-            "template": " {{ if .SSHSession }}{{ else }}{{ end }} {{ .UserName }} ",
+            "template": " {{ if .SSHSession }}{{ else }}{{ end }} {{ .UserName }} ",
             "style": "plain",
             "type": "session"
           },
@@ -43,7 +43,7 @@
               "{{ if gt .Ahead 0 }}#16c60c{{ end }}",
               "{{ if gt .Behind 0 }}#f450de{{ end }}"
             ],
-            "template": " {{ .UpstreamIcon }}{{ .HEAD }}{{ .BranchStatus }}{{ if .Working.Changed }}  {{ .Working.String }}{{ end }}{{ if and (.Working.Changed) (.Staging.Changed) }} |{{ end }}{{ if .Staging.Changed }}  {{ .Staging.String }}{{ end }}{{ if gt .StashCount 0 }}  {{ .StashCount }}{{ end }}",
+            "template": " {{ .UpstreamIcon }}{{ .HEAD }}{{ .BranchStatus }}{{ if .Working.Changed }}  {{ .Working.String }}{{ end }}{{ if and (.Working.Changed) (.Staging.Changed) }} |{{ end }}{{ if .Staging.Changed }}  {{ .Staging.String }}{{ end }}{{ if gt .StashCount 0 }}  {{ .StashCount }}{{ end }}",
             "properties": {
               "branch_max_length": 25,
               "fetch_stash_count": true,
@@ -64,7 +64,7 @@
             "foreground": "#AE00FB",
             "template": "{{ if .WSL }}WSL @ {{ end }}{{.Icon}} ",
             "properties": {
-              "windows": ""
+              "windows": ""
             },
             "style": "plain",
             "type": "os"
@@ -84,17 +84,17 @@
             ],
             "template": " {{ .Icon }} {{ .Percentage }}% ",
             "properties": {
-              "charged_icon": "",
+              "charged_icon": "",
               "charging_icon": "",
               "discharging_icon": "",
-              "not_charging_icon": ""
+              "not_charging_icon": ""
             },
             "style": "plain",
             "type": "battery"
           },
           {
             "foreground": "#F7EC09",
-            "template": "  {{ .CurrentDate | date .Format }}",
+            "template": "  {{ .CurrentDate | date .Format }}",
             "properties": {
               "time_format": "15:04:03"
             },
